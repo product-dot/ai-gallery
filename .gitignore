@@ -1,0 +1,15 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+tmp_media/
+library/
+failed_downloads.csv
+skipped_no_data.csv
+node_modules/
+.next/
+out/
+.cursor/

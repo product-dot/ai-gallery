@@ -1,0 +1,126 @@
+[
+  {
+    "consolidated_format_name": "Aesthetic Lifestyle Showcase",
+    "original_labels": [
+      "nightout vibe showcase",
+      "aesthetic vibe check",
+      "aesthetic lifestyle vibe",
+      "Aesthetic lifestyle showcase",
+      "Aesthetic street walk"
+    ],
+    "fixed_structure": "Creator in an aspirational or visually striking setting performs a leisure activity (sipping, cruising, swaying, walking, posing) while making direct eye contact with the camera, resolving with a charming smile or confident pose and optional playful caption.",
+    "variable_elements": "Specific setting/location (beach club, cafe, vehicle, city street, beach), type of leisure activity, outfit and styling, background audio track, and caption text.",
+    "example_count": 5,
+    "video_ids": [
+      "DY-bG6vsCXx.mp4",
+      "DdMAjDmMUYY.mp4",
+      "DdT-IQiMnrO.mp4",
+      "DW3xR5tg_nt.mp4",
+      "DdEtodwM1W0.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Outfit Showcase Reveal",
+    "original_labels": [
+      "outfit turn-around reveal",
+      "mirror selfie OOTD"
+    ],
+    "fixed_structure": "Creator positions to display an outfit from multiple angles or via a reveal mechanic, culminating in a final pose that showcases the complete look.",
+    "variable_elements": "Featured outfit or swimsuit, location setting (beach, bathroom mirror), specific posing routine or transition method, accessories, and background audio.",
+    "example_count": 2,
+    "video_ids": [
+      "DdL8Rz4MTGy.mp4",
+      "DUa6Cw7kRhO.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Podcast Talking-Head Clip",
+    "original_labels": [
+      "podcast clip",
+      "podcast clip"
+    ],
+    "fixed_structure": "Speaker at a podcast microphone delivers a focused thesis statement or piece of advice on a social/relationship topic, ending with an affirming or impactful message to the audience.",
+    "variable_elements": "Central thesis or topic (friendship, feminine energy, self-love), speaker appearance, podcast studio setup, and specific advice or quote delivered.",
+    "example_count": 2,
+    "video_ids": [
+      "DS0ybD_kp6v.mp4",
+      "DTlOELOESpl.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Flirty Playful Pose",
+    "original_labels": [
+      "thirst trap",
+      "Ironic caption portrait"
+    ],
+    "fixed_structure": "Creator poses flirtatiously or playfully for the camera with direct eye contact, interactive gestures (winking, hair flipping, pointing), and a cheeky or humorous payoff moment.",
+    "variable_elements": "Outfit and styling, setting and lighting, specific flirty gestures, ironic or playful caption topic, and background music/audio track.",
+    "example_count": 2,
+    "video_ids": [
+      "DUbmL7skr5N.mp4",
+      "DTsgMvwEy6v.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Reaction Engagement Bait",
+    "original_labels": [
+      "reaction bait dance",
+      "public reaction stunt"
+    ],
+    "fixed_structure": "Hook presents a provocative, outlandish, or curiosity-driven scenario; creator performs an activity that draws visible reactions or sets up controversy; payoff resolves with a smile or gesture plus an engagement-driving caption or question.",
+    "variable_elements": "Outfit or scenario provocation, public or private setting, type of reaction drawn (bystander disapproval, caption controversy), specific activity (dancing, shopping), and engagement caption or question.",
+    "example_count": 2,
+    "video_ids": [
+      "DTnR3LDEYo_.mp4",
+      "DZ-Y0QuRMpY.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "POV Expression Introduction",
+    "original_labels": [
+      "POV introduction"
+    ],
+    "fixed_structure": "Creator begins facing away or with a serious/aloof expression, then slowly turns toward the camera and transitions into a warm, inviting smile or laugh, creating an intimate personal introduction.",
+    "variable_elements": "Creator identity, outfit style, background setting, audio track, and the specific expression switch from serious/intense to warm/smiling.",
+    "example_count": 1,
+    "video_ids": [
+      "DTsnla1EYI-.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Transformation Reveal Transition",
+    "original_labels": [
+      "makeup transformation transition"
+    ],
+    "fixed_structure": "Creator starts in a bare-faced or undone state, uses a hand-cover or transition gesture to hide the camera lens, and reveals a completed thematic look (makeup, hair, styling) with a final pose.",
+    "variable_elements": "Makeup theme or holiday (Valentine's Day, Halloween, NYE), specific hair accessories and makeup aesthetic, transition gesture type, and final pose.",
+    "example_count": 1,
+    "video_ids": [
+      "DUeIuhqkgPV.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Identity Guessing Game",
+    "original_labels": [
+      "ethnicity guessing game"
+    ],
+    "fixed_structure": "Text overlay poses an identity-related question; creator reveals partial information (percentages, flags, breakdown) while withholding a final mystery element; payoff prompts viewers to guess the hidden answer in comments with a caption hint.",
+    "variable_elements": "Mix of flags or ethnicities shown, percentages, mystery country or flag, and the hint provided in the caption.",
+    "example_count": 1,
+    "video_ids": [
+      "DVGvaajEwqk.mp4"
+    ]
+  },
+  {
+    "consolidated_format_name": "Day-in-the-Life Montage",
+    "original_labels": [
+      "AI aesthetic day-in-the-life"
+    ],
+    "fixed_structure": "Opens with a full-body establishing pose, transitions into a montage of multiple daily activities (cafe work, skincare, walking, cooking), and closes with a cozy final scene paired with a CTA question to the audience.",
+    "variable_elements": "AI model design or creator appearance, featured routine activities, outfits across scenes, and final CTA question.",
+    "example_count": 1,
+    "video_ids": [
+      "DR3J0D4ERqJ.mp4"
+    ]
+  }
+]

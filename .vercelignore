@@ -1,0 +1,8 @@
+.venv
+venv
+library
+tmp_media
+__pycache__
+.env
+*.mp4
+.cursor

@@ -1,0 +1,26 @@
+# One already-vetted Instagram username per line.
+# These are NOT re-scored. They are only used to discover new candidates.
+# Lines starting with # and blank lines are ignored.
+#
+# Example:
+# some_ai_artist
+aiemilyrae
+elenasuvariofficial
+chloemiabrown
+jennifer.st.jaimes
+alessi.vice
+cowgirl.jess05
+lia_nablake
+goonetgoblin
+kassidy.46
+karina_marukyan
+deannaritter98
+ritafaez
+lovejadet33n
+mikaylademaiter
+sofmarcelli
+alexus.rae
+sophiaalvarezz_
+samanthaeverly33
+the_cutesophia
+basedxrosie

@@ -1,0 +1,369 @@
+{
+  "model": "inclusionai/ling-3.0-flash-vl:free",
+  "formats": [
+    {
+      "consolidated_format_name": "Aesthetic Lifestyle Showcase",
+      "original_labels": [
+        "nightout vibe showcase",
+        "aesthetic vibe check",
+        "aesthetic lifestyle vibe",
+        "Aesthetic lifestyle showcase",
+        "Aesthetic street walk"
+      ],
+      "fixed_structure": "Creator in an aspirational or visually striking setting performs a leisure activity (sipping, cruising, swaying, walking, posing) while making direct eye contact with the camera, resolving with a charming smile or confident pose and optional playful caption.",
+      "variable_elements": "Specific setting/location (beach club, cafe, vehicle, city street, beach), type of leisure activity, outfit and styling, background audio track, and caption text.",
+      "example_count": 5,
+      "video_ids": [
+        "DY-bG6vsCXx.mp4",
+        "DdMAjDmMUYY.mp4",
+        "DdT-IQiMnrO.mp4",
+        "DW3xR5tg_nt.mp4",
+        "DdEtodwM1W0.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Outfit Showcase Reveal",
+      "original_labels": [
+        "outfit turn-around reveal",
+        "mirror selfie OOTD"
+      ],
+      "fixed_structure": "Creator positions to display an outfit from multiple angles or via a reveal mechanic, culminating in a final pose that showcases the complete look.",
+      "variable_elements": "Featured outfit or swimsuit, location setting (beach, bathroom mirror), specific posing routine or transition method, accessories, and background audio.",
+      "example_count": 2,
+      "video_ids": [
+        "DdL8Rz4MTGy.mp4",
+        "DUa6Cw7kRhO.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Podcast Talking-Head Clip",
+      "original_labels": [
+        "podcast clip",
+        "podcast clip"
+      ],
+      "fixed_structure": "Speaker at a podcast microphone delivers a focused thesis statement or piece of advice on a social/relationship topic, ending with an affirming or impactful message to the audience.",
+      "variable_elements": "Central thesis or topic (friendship, feminine energy, self-love), speaker appearance, podcast studio setup, and specific advice or quote delivered.",
+      "example_count": 2,
+      "video_ids": [
+        "DS0ybD_kp6v.mp4",
+        "DTlOELOESpl.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Flirty Playful Pose",
+      "original_labels": [
+        "thirst trap",
+        "Ironic caption portrait"
+      ],
+      "fixed_structure": "Creator poses flirtatiously or playfully for the camera with direct eye contact, interactive gestures (winking, hair flipping, pointing), and a cheeky or humorous payoff moment.",
+      "variable_elements": "Outfit and styling, setting and lighting, specific flirty gestures, ironic or playful caption topic, and background music/audio track.",
+      "example_count": 2,
+      "video_ids": [
+        "DUbmL7skr5N.mp4",
+        "DTsgMvwEy6v.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Reaction Engagement Bait",
+      "original_labels": [
+        "reaction bait dance",
+        "public reaction stunt"
+      ],
+      "fixed_structure": "Hook presents a provocative, outlandish, or curiosity-driven scenario; creator performs an activity that draws visible reactions or sets up controversy; payoff resolves with a smile or gesture plus an engagement-driving caption or question.",
+      "variable_elements": "Outfit or scenario provocation, public or private setting, type of reaction drawn (bystander disapproval, caption controversy), specific activity (dancing, shopping), and engagement caption or question.",
+      "example_count": 2,
+      "video_ids": [
+        "DTnR3LDEYo_.mp4",
+        "DZ-Y0QuRMpY.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "POV Expression Introduction",
+      "original_labels": [
+        "POV introduction"
+      ],
+      "fixed_structure": "Creator begins facing away or with a serious/aloof expression, then slowly turns toward the camera and transitions into a warm, inviting smile or laugh, creating an intimate personal introduction.",
+      "variable_elements": "Creator identity, outfit style, background setting, audio track, and the specific expression switch from serious/intense to warm/smiling.",
+      "example_count": 1,
+      "video_ids": [
+        "DTsnla1EYI-.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Transformation Reveal Transition",
+      "original_labels": [
+        "makeup transformation transition"
+      ],
+      "fixed_structure": "Creator starts in a bare-faced or undone state, uses a hand-cover or transition gesture to hide the camera lens, and reveals a completed thematic look (makeup, hair, styling) with a final pose.",
+      "variable_elements": "Makeup theme or holiday (Valentine's Day, Halloween, NYE), specific hair accessories and makeup aesthetic, transition gesture type, and final pose.",
+      "example_count": 1,
+      "video_ids": [
+        "DUeIuhqkgPV.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Identity Guessing Game",
+      "original_labels": [
+        "ethnicity guessing game"
+      ],
+      "fixed_structure": "Text overlay poses an identity-related question; creator reveals partial information (percentages, flags, breakdown) while withholding a final mystery element; payoff prompts viewers to guess the hidden answer in comments with a caption hint.",
+      "variable_elements": "Mix of flags or ethnicities shown, percentages, mystery country or flag, and the hint provided in the caption.",
+      "example_count": 1,
+      "video_ids": [
+        "DVGvaajEwqk.mp4"
+      ]
+    },
+    {
+      "consolidated_format_name": "Day-in-the-Life Montage",
+      "original_labels": [
+        "AI aesthetic day-in-the-life"
+      ],
+      "fixed_structure": "Opens with a full-body establishing pose, transitions into a montage of multiple daily activities (cafe work, skincare, walking, cooking), and closes with a cozy final scene paired with a CTA question to the audience.",
+      "variable_elements": "AI model design or creator appearance, featured routine activities, outfits across scenes, and final CTA question.",
+      "example_count": 1,
+      "video_ids": [
+        "DR3J0D4ERqJ.mp4"
+      ]
+    }
+  ],
+  "videos": [
+    {
+      "username": "ritafaez",
+      "caption": "Come party together \ud83c\udf89",
+      "hook": "A stylishly dressed woman sitting at an outdoor beach club at night, looking at the camera while grooving to background music.",
+      "core_action": "Sitting outdoors at a nightlife venue on the sand, swaying, smiling, and dancing softly to the music.",
+      "payoff_or_cta": "A charming glance at the camera paired with a caption inviting viewers to 'Come party together \ud83c\udf89'.",
+      "likesCount": "37637",
+      "videoViewCount": "2333663",
+      "consolidated_format": "Aesthetic Lifestyle Showcase",
+      "format_category": "nightout vibe showcase",
+      "permalink": "https://www.instagram.com/reel/DY-bG6vsCXx/",
+      "thumbnail": "/thumbnails/DY-bG6vsCXx.jpg",
+      "video_filename": "DY-bG6vsCXx.mp4"
+    },
+    {
+      "username": "ritafaez",
+      "caption": "\ud83c\udf75\ud83c\udf75",
+      "hook": "A stylishly dressed woman makes intense, direct eye contact with the camera while holding a bright green iced matcha latte.",
+      "core_action": "She brings the clear mug to her lips and takes a slow sip while maintaining eye contact.",
+      "payoff_or_cta": "She lowers the glass, reacts with a subtle smirk, and shifts into a chic, effortless pose.",
+      "likesCount": "2356",
+      "videoViewCount": "243613",
+      "consolidated_format": "Aesthetic Lifestyle Showcase",
+      "format_category": "aesthetic vibe check",
+      "permalink": "https://www.instagram.com/reel/DdMAjDmMUYY/",
+      "thumbnail": "/thumbnails/DdMAjDmMUYY.jpg",
+      "video_filename": "DdMAjDmMUYY.mp4"
+    },
+    {
+      "username": "ritafaez",
+      "caption": "\ud83d\udc40",
+      "hook": "A model stands in shallow ocean water on a beach facing away from the camera, glancing over her shoulder.",
+      "core_action": "The model turns around to face the camera, fixing her hair and posing in her bikini on the beach.",
+      "payoff_or_cta": "A full front reveal of the bikini outfit while posing against the scenic coastal backdrop.",
+      "likesCount": "19419",
+      "videoViewCount": "274634",
+      "consolidated_format": "Outfit Showcase Reveal",
+      "format_category": "outfit turn-around reveal",
+      "permalink": "https://www.instagram.com/reel/DdL8Rz4MTGy/",
+      "thumbnail": "/thumbnails/DdL8Rz4MTGy.jpg",
+      "video_filename": "DdL8Rz4MTGy.mp4"
+    },
+    {
+      "username": "ritafaez",
+      "caption": "",
+      "hook": "A stylish woman riding passenger in an open-air buggy takes a sip from an iced drink while breeze flows through her hair.",
+      "core_action": "Sipping a cold drink and relaxing passenger-side while cruising through a sunny vacation destination in an open vehicle.",
+      "payoff_or_cta": "She leans back, looks into the camera, and smiles warmly, capturing an effortless summer aesthetic mood.",
+      "likesCount": "3042",
+      "videoViewCount": "218179",
+      "consolidated_format": "Aesthetic Lifestyle Showcase",
+      "format_category": "aesthetic lifestyle vibe",
+      "permalink": "https://www.instagram.com/reel/DdT-IQiMnrO/",
+      "thumbnail": "/thumbnails/DdT-IQiMnrO.jpg",
+      "video_filename": "DdT-IQiMnrO.mp4"
+    },
+    {
+      "username": "ritafaez",
+      "caption": "Catch me if u can\ud83c\udf75",
+      "hook": "A stylish woman walks towards the camera on a sunlit city street holding an iced matcha drink.",
+      "core_action": "Strutting casually down a city street while maintaining eye contact with the camera, holding an iced drink and purse.",
+      "payoff_or_cta": "Resolves with a close-up perspective as she approaches the camera, complemented by a playful caption ('Catch me if u can\ud83c\udf75').",
+      "likesCount": "8148",
+      "videoViewCount": "119522",
+      "consolidated_format": "Aesthetic Lifestyle Showcase",
+      "format_category": "Aesthetic street walk",
+      "permalink": "https://www.instagram.com/reel/DdEtodwM1W0/",
+      "thumbnail": "/thumbnails/DdEtodwM1W0.jpg",
+      "video_filename": "DdEtodwM1W0.mp4"
+    },
+    {
+      "username": "deannaritter98",
+      "caption": "Hi. I'm Deanna. Nice to meet ya! \u2764\ufe0f",
+      "hook": "A woman looking away turns slowly toward the camera to establish direct, intense eye contact with the viewer.",
+      "core_action": "Holding a selfie camera, she poses in activewear and transitions her expression from a serious, alluring gaze to a warm, inviting smile.",
+      "payoff_or_cta": "She breaks into a friendly smile and gentle laugh close to the camera, creating an intimate introduction to the audience.",
+      "likesCount": "13381",
+      "videoViewCount": "297460",
+      "consolidated_format": "POV Expression Introduction",
+      "format_category": "POV introduction",
+      "permalink": "https://www.instagram.com/reel/DTsnla1EYI-/",
+      "thumbnail": "/thumbnails/DTsnla1EYI-.jpg",
+      "video_filename": "DTsnla1EYI-.mp4"
+    },
+    {
+      "username": "deannaritter98",
+      "caption": "And away we go! \u2764\ufe0f",
+      "hook": "A woman stands in a full-length mirror showcasing a stylish night-out outfit in a glamorous bathroom setting.",
+      "core_action": "Posing in the mirror from various angles, including tilting down to show shoes and turning to show the side profile of the outfit.",
+      "payoff_or_cta": "Strikes a final side-profile pose displaying the complete look before going out.",
+      "likesCount": "7466",
+      "videoViewCount": "120104",
+      "consolidated_format": "Outfit Showcase Reveal",
+      "format_category": "mirror selfie OOTD",
+      "permalink": "https://www.instagram.com/reel/DUa6Cw7kRhO/",
+      "thumbnail": "/thumbnails/DUa6Cw7kRhO.jpg",
+      "video_filename": "DUa6Cw7kRhO.mp4"
+    },
+    {
+      "username": "deannaritter98",
+      "caption": "I showed my friend this. And she thought I was an idiot. lol. What do you think?",
+      "hook": "A creator poses and sways in golden hour light wearing a grey lounge set, paired with a caption claiming her friend thought she was an idiot.",
+      "core_action": "Playfully dancing, lip-syncing, and displaying a loungewear set in her apartment.",
+      "payoff_or_cta": "Ends with a cheerful smile and gesture, while the caption asks viewers 'What do you think?' to drive comment section engagement.",
+      "likesCount": "8311",
+      "videoViewCount": "124388",
+      "consolidated_format": "Reaction Engagement Bait",
+      "format_category": "reaction bait dance",
+      "permalink": "https://www.instagram.com/reel/DTnR3LDEYo_/",
+      "thumbnail": "/thumbnails/DTnR3LDEYo_.jpg",
+      "video_filename": "DTnR3LDEYo_.mp4"
+    },
+    {
+      "username": "deannaritter98",
+      "caption": "And the truth shall set you free! lol \u2764\ufe0f",
+      "hook": "A woman on a tropical beach makes a dramatic animated expression directly toward the camera.",
+      "core_action": "Posing, smiling, and adjusting her hair playfully in swimwear on a beach at golden hour.",
+      "payoff_or_cta": "Ends with a candid, confident smile and pose towards the camera.",
+      "likesCount": "5238",
+      "videoViewCount": "86165",
+      "consolidated_format": "Aesthetic Lifestyle Showcase",
+      "format_category": "Aesthetic lifestyle showcase",
+      "permalink": "https://www.instagram.com/reel/DW3xR5tg_nt/",
+      "thumbnail": "/thumbnails/DW3xR5tg_nt.jpg",
+      "video_filename": "DW3xR5tg_nt.mp4"
+    },
+    {
+      "username": "deannaritter98",
+      "caption": "Happens more often than you'd think. lol \u2764\ufe0f 307",
+      "hook": "Woman in a bikini shops in a grocery aisle, drawing shocked looks from shoppers.",
+      "core_action": "Browsing groceries while background onlookers react with visible disapproval.",
+      "payoff_or_cta": "Subject turns to the camera, laughs, and poses playfully.",
+      "likesCount": "4923",
+      "videoViewCount": "79428",
+      "consolidated_format": "Reaction Engagement Bait",
+      "format_category": "public reaction stunt",
+      "permalink": "https://www.instagram.com/reel/DZ-Y0QuRMpY/",
+      "thumbnail": "/thumbnails/DZ-Y0QuRMpY.jpg",
+      "video_filename": "DZ-Y0QuRMpY.mp4"
+    },
+    {
+      "username": "aiemilyrae",
+      "caption": "Being a girls girl isn\u2019t just a vibe \u2014 it\u2019s a choice. It\u2019s showing up when it\u2019s inconvenient, clapping the loudest when your friend wins, and holding space when she\u2019s falling apart instead of competing in silence. It\u2019s checking in, keeping secrets safe, and reminding the people you love who they are on the days they forget. In a world that profits off comparison, sisterhood is rebellion. If you\u2019re the friend who shows up, stays soft, and loves loudly \u2014 this one\u2019s for you. \ud83d\udc8c\u2728",
+      "hook": "A woman speaking directly into a podcast microphone delivering a bold statement defining what it means to be a true 'girl's girl'.",
+      "core_action": "A talking-head podcast clip where the speaker shares heartfelt advice and philosophical thoughts on female friendship and support.",
+      "payoff_or_cta": "Affirms supportive friends with a dedicated message validating their loyalty and kindness.",
+      "likesCount": "18174",
+      "videoViewCount": "1175964",
+      "consolidated_format": "Podcast Talking-Head Clip",
+      "format_category": "podcast clip",
+      "permalink": "https://www.instagram.com/reel/DS0ybD_kp6v/",
+      "thumbnail": "/thumbnails/DS0ybD_kp6v.jpg",
+      "video_filename": "DS0ybD_kp6v.mp4"
+    },
+    {
+      "username": "aiemilyrae",
+      "caption": "She doesn\u2019t just receive - she multiples. \ud83e\udd0d\nThis is feminine energy.",
+      "hook": "A woman seated at a podcast microphone opens with an intriguing statement about feminine energy and receiving value.",
+      "core_action": "Speaking directly into a professional podcast microphone, sharing mindset and relationship philosophy.",
+      "payoff_or_cta": "Delivers a powerful perspective on feminine energy, highlighting how women multiply what they receive.",
+      "likesCount": "8802",
+      "videoViewCount": "429445",
+      "consolidated_format": "Podcast Talking-Head Clip",
+      "format_category": "podcast clip",
+      "permalink": "https://www.instagram.com/reel/DTlOELOESpl/",
+      "thumbnail": "/thumbnails/DTlOELOESpl.jpg",
+      "video_filename": "DTlOELOESpl.mp4"
+    },
+    {
+      "username": "aiemilyrae",
+      "caption": "Valentines look \ud83d\udc40\u2665\ufe0f",
+      "hook": "A bare-faced woman with hair in a bun points down and places her palm over the camera lens to hide the screen.",
+      "core_action": "A seamless hand-cover camera transition revealing a dramatic visual makeup and hair transformation.",
+      "payoff_or_cta": "The creator poses and shows off the completed Valentine's Day glam look featuring pink eyeshadow, heart eye gems, and heart hair accessories.",
+      "likesCount": "19290",
+      "videoViewCount": "445330",
+      "consolidated_format": "Transformation Reveal Transition",
+      "format_category": "makeup transformation transition",
+      "permalink": "https://www.instagram.com/reel/DUeIuhqkgPV/",
+      "thumbnail": "/thumbnails/DUeIuhqkgPV.jpg",
+      "video_filename": "DUeIuhqkgPV.mp4"
+    },
+    {
+      "username": "aiemilyrae",
+      "caption": "To every man out there \ud83e\udd2d\n\n#trend #aiinfluencer #fyp",
+      "hook": "A blonde woman waves playfully at the camera with a bright, welcoming smile.",
+      "core_action": "A model poses flirtatiously for the camera, smiling, winking, and running a hand through her hair in a selfie video format.",
+      "payoff_or_cta": "She points directly at the camera with a cheeky wink and smile.",
+      "likesCount": "8269",
+      "videoViewCount": "282537",
+      "consolidated_format": "Flirty Playful Pose",
+      "format_category": "thirst trap",
+      "permalink": "https://www.instagram.com/reel/DUbmL7skr5N/",
+      "thumbnail": "/thumbnails/DUbmL7skr5N.jpg",
+      "video_filename": "DUbmL7skr5N.mp4"
+    },
+    {
+      "username": "aiemilyrae",
+      "caption": "Just a little daily vlog moment \u2615\ufe0f\ud83e\udd0d\n\nWhile I\u2019m living my real life, Emily is posting, creating, and showing up all day long. Work smarter, not harder \ud83e\udde0\u2728\n\nShould Em make vlogs more often? \ud83e\udd2d#trend #ai #aiinfluencer",
+      "hook": "Full-body mirror pose in a chic workout studio setting an aesthetic daily tone.",
+      "core_action": "Montage of daily activities: working at a cafe, skincare routine, walking a dog, and cooking.",
+      "payoff_or_cta": "Cozy home cooking scene paired with a caption CTA asking if she should vlog more.",
+      "likesCount": "-1",
+      "videoViewCount": "85132",
+      "consolidated_format": "Day-in-the-Life Montage",
+      "format_category": "AI aesthetic day-in-the-life",
+      "permalink": "https://www.instagram.com/reel/DR3J0D4ERqJ/",
+      "thumbnail": "/thumbnails/DR3J0D4ERqJ.jpg",
+      "video_filename": "DR3J0D4ERqJ.mp4"
+    },
+    {
+      "username": "elenasuvariofficial",
+      "caption": "Starts with K\n\nCheck pinned comment for another hint",
+      "hook": "Text overlay poses the prompt 'Where are you from?' over a close-up visual of the creator.",
+      "core_action": "The creator displays a breakdown of her background (25% Italian, 25% Turkish, 25% Russian) while leaving the final 25% hidden as a question mark.",
+      "payoff_or_cta": "Prompts viewers to guess the missing 25% in the comments, offering a hint in the caption ('Starts with K').",
+      "likesCount": "15732",
+      "videoViewCount": "383241",
+      "consolidated_format": "Identity Guessing Game",
+      "format_category": "ethnicity guessing game",
+      "permalink": "https://www.instagram.com/reel/DVGvaajEwqk/",
+      "thumbnail": "/thumbnails/DVGvaajEwqk.jpg",
+      "video_filename": "DVGvaajEwqk.mp4"
+    },
+    {
+      "username": "elenasuvariofficial",
+      "caption": "I had to take a break from my phone for a few days, and just enjoy nature",
+      "hook": "A woman posing intimately for the camera in a glamorous urban night setting, paired with an ironic caption about taking a break from technology to enjoy nature.",
+      "core_action": "The creator poses interactively for the camera\u2014smiling, flipping her hair, and making playful eye contact against a blurred city lights backdrop.",
+      "payoff_or_cta": "Delivers humor/irony through the obvious contrast between the sarcastic caption about 'nature' and the high-glam, city restaurant setting.",
+      "likesCount": "5231",
+      "videoViewCount": "79758",
+      "consolidated_format": "Flirty Playful Pose",
+      "format_category": "Ironic caption portrait",
+      "permalink": "https://www.instagram.com/reel/DTsgMvwEy6v/",
+      "thumbnail": "/thumbnails/DTsgMvwEy6v.jpg",
+      "video_filename": "DTsgMvwEy6v.mp4"
+    }
+  ]
+}
