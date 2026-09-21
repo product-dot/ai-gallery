@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Selected Reels Library</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --ink: #161513;
+      --muted: #6b6560;
+      --card: #fffcf7;
+      --line: #ddd6cc;
+      --accent: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    header {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px 16px;
+    }
+    h1 {
+      font-size: 2rem;
+      margin: 0 0 8px;
+      letter-spacing: -0.03em;
+    }
+    .lede {
+      color: var(--muted);
+      max-width: 40rem;
+      line-height: 1.5;
+      margin: 0 0 20px;
+    }
+    #search {
+      font: 16px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--ink);
+      width: min(420px, 100%);
+    }
+    .count {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 12px 0 0;
+    }
+    .grid {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 8px 24px 48px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      cursor: pointer;
+    }
+    .card[hidden] { display: none; }
+    .thumb {
+      display: block;
+      aspect-ratio: 9 / 16;
+      background: #ece7dd;
+      overflow: hidden;
+      color: inherit;
+      text-decoration: none;
+    }
+    .thumb img,
+    .placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.85rem;
+    }
+    .body {
+      padding: 12px 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+    .username {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 600;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .username:hover { text-decoration: underline; }
+    .followers {
+      margin: 0;
+      color: var(--muted);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+    }
+    .caption {
+      margin: 4px 0 0;
+      font-size: 0.95rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .muted { color: var(--muted); }
+    .stats {
+      margin: 4px 0 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+    }
+    .reels-link {
+      margin-top: auto;
+      padding-top: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    .empty {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Selected Reels Library</h1>
+    <p class="lede">Highest-view reel for each account. Thumbnail opens that reel; the text link opens the creator's Reels tab.</p>
+    <input id="search" type="search" placeholder="Filter by username" aria-label="Filter by username">
+    <p class="count" id="count"></p>
+  </header>
+  <main class="grid" id="grid">
+    
+    <article class="card" data-username="lexi_marvel">
+      <a class="thumb" href="https://www.instagram.com/reel/Db6LvldBh0K/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/Db6LvldBh0K/" target="_blank" rel="noopener noreferrer">@lexi_marvel</a>
+        <p class="followers">3,388,374 followers</p>
+        <p class="caption">bts ✨</p>
+        <p class="stats">
+          <span>81,238 likes</span>
+          <span>506 comments</span>
+          <span>15,999,765 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/lexi_marvel/reels/" target="_blank" rel="noopener noreferrer">View @lexi_marvel's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="imyourmoonaria">
+      <a class="thumb" href="https://www.instagram.com/reel/DV52I8Tje6u/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DV52I8Tje6u/" target="_blank" rel="noopener noreferrer">@imyourmoonaria</a>
+        <p class="followers">90,787 followers</p>
+        <p class="caption">Close them👀</p>
+        <p class="stats">
+          <span>77,129 likes</span>
+          <span>803 comments</span>
+          <span>4,194,677 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/imyourmoonaria/reels/" target="_blank" rel="noopener noreferrer">View @imyourmoonaria's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="leahbritton">
+      <a class="thumb" href="https://www.instagram.com/reel/DRjXtbBE81L/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DRjXtbBE81L.jpg" alt="@leahbritton reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DRjXtbBE81L/" target="_blank" rel="noopener noreferrer">@leahbritton</a>
+        <p class="followers">198,323 followers</p>
+        <p class="caption">When he asks for your number but you’re “one of those” and you hit him with the…</p>
+        <p class="stats">
+          <span>15,302 likes</span>
+          <span>238 comments</span>
+          <span>3,597,410 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/leahbritton/reels/" target="_blank" rel="noopener noreferrer">View @leahbritton's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="sarahtrnerr_">
+      <a class="thumb" href="https://www.instagram.com/reel/Da_mgtIzV_X/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/Da_mgtIzV_X/" target="_blank" rel="noopener noreferrer">@sarahtrnerr_</a>
+        <p class="followers">177,394 followers</p>
+        <p class="caption">💅</p>
+        <p class="stats">
+          <span>49,971 likes</span>
+          <span>755 comments</span>
+          <span>3,270,175 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/sarahtrnerr_/reels/" target="_blank" rel="noopener noreferrer">View @sarahtrnerr_'s Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="killer_katrin">
+      <a class="thumb" href="https://www.instagram.com/reel/DVLmXa6AWS8/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DVLmXa6AWS8.jpg" alt="@killer_katrin reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DVLmXa6AWS8/" target="_blank" rel="noopener noreferrer">@killer_katrin</a>
+        <p class="followers">2,720,497 followers</p>
+        <p class="caption">We opened the fridge for snacks… but found our spotlight instead 🤭😉</p>
+        <p class="stats">
+          <span>34,902 likes</span>
+          <span>554 comments</span>
+          <span>2,233,766 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/killer_katrin/reels/" target="_blank" rel="noopener noreferrer">View @killer_katrin's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="evasavagiou">
+      <a class="thumb" href="https://www.instagram.com/reel/Dc0bLOOIIdA/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/Dc0bLOOIIdA/" target="_blank" rel="noopener noreferrer">@evasavagiou</a>
+        <p class="followers">5,077,829 followers</p>
+        <p class="caption">this red dress &gt;&gt;</p>
+        <p class="stats">
+          <span>14,255 likes</span>
+          <span>286 comments</span>
+          <span>1,254,075 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/evasavagiou/reels/" target="_blank" rel="noopener noreferrer">View @evasavagiou's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="michellediaz_x">
+      <a class="thumb" href="https://www.instagram.com/reel/DcGqkA0xfAp/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DcGqkA0xfAp/" target="_blank" rel="noopener noreferrer">@michellediaz_x</a>
+        <p class="followers">249,389 followers</p>
+        <p class="caption">Easyyyy</p>
+        <p class="stats">
+          <span>23,376 likes</span>
+          <span>731 comments</span>
+          <span>1,173,463 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/michellediaz_x/reels/" target="_blank" rel="noopener noreferrer">View @michellediaz_x's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="karina_marukyan">
+      <a class="thumb" href="https://www.instagram.com/reel/DaknAqQMB4b/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DaknAqQMB4b/" target="_blank" rel="noopener noreferrer">@karina_marukyan</a>
+        <p class="followers">425,115 followers</p>
+        <p class="caption">Post workout smile :)</p>
+        <p class="stats">
+          <span>82,030 likes</span>
+          <span>1,232 comments</span>
+          <span>992,810 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/karina_marukyan/reels/" target="_blank" rel="noopener noreferrer">View @karina_marukyan's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="basedxrosie">
+      <a class="thumb" href="https://www.instagram.com/reel/DaAqB32w2Q4/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DaAqB32w2Q4/" target="_blank" rel="noopener noreferrer">@basedxrosie</a>
+        <p class="followers">145,646 followers</p>
+        <p class="caption">can&#x27;t tell which part gets me the most lol</p>
+        <p class="stats">
+          <span>4,523 likes</span>
+          <span>26 comments</span>
+          <span>662,497 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/basedxrosie/reels/" target="_blank" rel="noopener noreferrer">View @basedxrosie's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="cecerose">
+      <a class="thumb" href="https://www.instagram.com/reel/Dc_LrwRqv5v/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/Dc_LrwRqv5v/" target="_blank" rel="noopener noreferrer">@cecerose</a>
+        <p class="followers">2,210,709 followers</p>
+        <p class="caption">Splashing around</p>
+        <p class="stats">
+          <span>38,012 likes</span>
+          <span>504 comments</span>
+          <span>536,484 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/cecerose/reels/" target="_blank" rel="noopener noreferrer">View @cecerose's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="alessi.vice">
+      <a class="thumb" href="https://www.instagram.com/reel/Db3aXBPR74C/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/Db3aXBPR74C/" target="_blank" rel="noopener noreferrer">@alessi.vice</a>
+        <p class="followers">82,019 followers</p>
+        <p class="caption">just a little mall walk in white lace 🤍
+
+#mallday #whitelace #sofiaalessi #jeansandheels #everydaylook</p>
+        <p class="stats">
+          <span>27,938 likes</span>
+          <span>1,039 comments</span>
+          <span>481,525 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/alessi.vice/reels/" target="_blank" rel="noopener noreferrer">View @alessi.vice's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="valentinabrunno">
+      <a class="thumb" href="https://www.instagram.com/reel/DZ-SLvXtsYD/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DZ-SLvXtsYD/" target="_blank" rel="noopener noreferrer">@valentinabrunno</a>
+        <p class="followers">98,200 followers</p>
+        <p class="caption">accidentally on TV, intentionally there for the goat brace 😭🎥</p>
+        <p class="stats">
+          <span>3 likes</span>
+          <span>338 comments</span>
+          <span>457,864 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/valentinabrunno/reels/" target="_blank" rel="noopener noreferrer">View @valentinabrunno's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="siennahayesw">
+      <a class="thumb" href="https://www.instagram.com/reel/DdWVPDxNvqk/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdWVPDxNvqk/" target="_blank" rel="noopener noreferrer">@siennahayesw</a>
+        <p class="followers">38,260 followers</p>
+        <p class="caption">@siennahayesw</p>
+        <p class="stats">
+          <span>17,105 likes</span>
+          <span>624 comments</span>
+          <span>375,063 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/siennahayesw/reels/" target="_blank" rel="noopener noreferrer">View @siennahayesw's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="lynacutiexo">
+      <a class="thumb" href="https://www.instagram.com/reel/Dcy9fkOPr2F/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/Dcy9fkOPr2F/" target="_blank" rel="noopener noreferrer">@lynacutiexo</a>
+        <p class="followers">120,714 followers</p>
+        <p class="caption">Is it hot in here or is it just me??✨</p>
+        <p class="stats">
+          <span>15,342 likes</span>
+          <span>343 comments</span>
+          <span>366,021 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/lynacutiexo/reels/" target="_blank" rel="noopener noreferrer">View @lynacutiexo's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="graygraygo">
+      <a class="thumb" href="https://www.instagram.com/reel/DaUFElDB2zc/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DaUFElDB2zc/" target="_blank" rel="noopener noreferrer">@graygraygo</a>
+        <p class="followers">521,240 followers</p>
+        <p class="caption">y’all have no idea how scared I was lmao.. ain’t trusting anyone ever again 😭</p>
+        <p class="stats">
+          <span>1,180 likes</span>
+          <span>37 comments</span>
+          <span>359,347 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/graygraygo/reels/" target="_blank" rel="noopener noreferrer">View @graygraygo's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="nadiabennt">
+      <a class="thumb" href="https://www.instagram.com/reel/DdPd6IuiACU/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DdPd6IuiACU.jpg" alt="@nadiabennt reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdPd6IuiACU/" target="_blank" rel="noopener noreferrer">@nadiabennt</a>
+        <p class="followers">359,555 followers</p>
+        <p class="caption">If it wasn&#x27;t him, it was his clone</p>
+        <p class="stats">
+          <span>4,569 likes</span>
+          <span>116 comments</span>
+          <span>273,036 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/nadiabennt/reels/" target="_blank" rel="noopener noreferrer">View @nadiabennt's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="minaaaparkerx">
+      <a class="thumb" href="https://www.instagram.com/reel/DdR2vOsMkux/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdR2vOsMkux/" target="_blank" rel="noopener noreferrer">@minaaaparkerx</a>
+        <p class="followers">108,273 followers</p>
+        <p class="caption"><span class="muted">No caption</span></p>
+        <p class="stats">
+          <span>12,476 likes</span>
+          <span>209 comments</span>
+          <span>266,293 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/minaaaparkerx/reels/" target="_blank" rel="noopener noreferrer">View @minaaaparkerx's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="yourcindyrellaa">
+      <a class="thumb" href="https://www.instagram.com/reel/DdHmW2XtX6U/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdHmW2XtX6U/" target="_blank" rel="noopener noreferrer">@yourcindyrellaa</a>
+        <p class="followers">261,116 followers</p>
+        <p class="caption"><span class="muted">No caption</span></p>
+        <p class="stats">
+          <span>14,520 likes</span>
+          <span>393 comments</span>
+          <span>210,768 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/yourcindyrellaa/reels/" target="_blank" rel="noopener noreferrer">View @yourcindyrellaa's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="samanthaeverly33">
+      <a class="thumb" href="https://www.instagram.com/reel/DVIciNhiS4t/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DVIciNhiS4t.jpg" alt="@samanthaeverly33 reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DVIciNhiS4t/" target="_blank" rel="noopener noreferrer">@samanthaeverly33</a>
+        <p class="followers">228,844 followers</p>
+        <p class="caption">Don’t mind me 😏</p>
+        <p class="stats">
+          <span>5,323 likes</span>
+          <span>478 comments</span>
+          <span>92,637 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/samanthaeverly33/reels/" target="_blank" rel="noopener noreferrer">View @samanthaeverly33's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="lowmonaxx">
+      <a class="thumb" href="https://www.instagram.com/reel/DdHXjCbsoEb/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdHXjCbsoEb/" target="_blank" rel="noopener noreferrer">@lowmonaxx</a>
+        <p class="followers">163,957 followers</p>
+        <p class="caption">😡👋</p>
+        <p class="stats">
+          <span>2,667 likes</span>
+          <span>31 comments</span>
+          <span>71,089 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/lowmonaxx/reels/" target="_blank" rel="noopener noreferrer">View @lowmonaxx's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="zara_amaya_">
+      <a class="thumb" href="https://www.instagram.com/reel/DdTrThNxgo8/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DdTrThNxgo8.jpg" alt="@zara_amaya_ reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdTrThNxgo8/" target="_blank" rel="noopener noreferrer">@zara_amaya_</a>
+        <p class="followers">106,070 followers</p>
+        <p class="caption">El desayuno está listo mi amor 🥰 
+#lifestyle #fyp #medellin #viral</p>
+        <p class="stats">
+          <span>5,364 likes</span>
+          <span>274 comments</span>
+          <span>47,022 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/zara_amaya_/reels/" target="_blank" rel="noopener noreferrer">View @zara_amaya_'s Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="deannaritter98">
+      <a class="thumb" href="https://www.instagram.com/reel/DcTy9pCRcYE/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DcTy9pCRcYE.jpg" alt="@deannaritter98 reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DcTy9pCRcYE/" target="_blank" rel="noopener noreferrer">@deannaritter98</a>
+        <p class="followers">653,094 followers</p>
+        <p class="caption">Aw man. I missed 250. Dang it. I&#x27;ve got to do better. Ah well. Enjoy your day!! ❤️ 249</p>
+        <p class="stats">
+          <span>4,304 likes</span>
+          <span>266 comments</span>
+          <span>43,654 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/deannaritter98/reels/" target="_blank" rel="noopener noreferrer">View @deannaritter98's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="sophie.tulips">
+      <a class="thumb" href="https://www.instagram.com/reel/DdUjC5bxk2p/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdUjC5bxk2p/" target="_blank" rel="noopener noreferrer">@sophie.tulips</a>
+        <p class="followers">365,828 followers</p>
+        <p class="caption">☀️🧜🏻‍♀️</p>
+        <p class="stats">
+          <span>1,923 likes</span>
+          <span>112 comments</span>
+          <span>20,666 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/sophie.tulips/reels/" target="_blank" rel="noopener noreferrer">View @sophie.tulips's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="fromchurch.toprison">
+      <a class="thumb" href="https://www.instagram.com/reel/DZjB5BtAlx8/" target="_blank" rel="noopener noreferrer">
+        <div class="placeholder">No thumbnail</div>
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DZjB5BtAlx8/" target="_blank" rel="noopener noreferrer">@fromchurch.toprison</a>
+        <p class="followers">15,790 followers</p>
+        <p class="caption">Life is sexy and so are we ✨</p>
+        <p class="stats">
+          <span>344 likes</span>
+          <span>37 comments</span>
+          <span>14,555 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/fromchurch.toprison/reels/" target="_blank" rel="noopener noreferrer">View @fromchurch.toprison's Reels</a>
+      </div>
+    </article>
+    
+
+    <article class="card" data-username="naomi_wonng">
+      <a class="thumb" href="https://www.instagram.com/reel/DdR9YaRNabi/" target="_blank" rel="noopener noreferrer">
+        <img src="thumbnails/DdR9YaRNabi.jpg" alt="@naomi_wonng reel">
+      </a>
+      <div class="body">
+        <a class="username" href="https://www.instagram.com/reel/DdR9YaRNabi/" target="_blank" rel="noopener noreferrer">@naomi_wonng</a>
+        <p class="followers">7,333 followers</p>
+        <p class="caption">Stepping into the room with complete focus and a touch of flair. Naomi making every glass door entrance feel like a runway moment. 🖤
+#model #fashion #ootd #fashionmodel #modellife</p>
+        <p class="stats">
+          <span>188 likes</span>
+          <span>4 comments</span>
+          <span>1,552 views</span>
+        </p>
+        <a class="reels-link" href="https://www.instagram.com/naomi_wonng/reels/" target="_blank" rel="noopener noreferrer">View @naomi_wonng's Reels</a>
+      </div>
+    </article>
+    
+    <p class="empty" id="empty" hidden>No accounts match that username.</p>
+  </main>
+  <script>
+    const usernames = ["lexi_marvel", "imyourmoonaria", "leahbritton", "sarahtrnerr_", "killer_katrin", "evasavagiou", "michellediaz_x", "karina_marukyan", "basedxrosie", "cecerose", "alessi.vice", "valentinabrunno", "siennahayesw", "lynacutiexo", "graygraygo", "nadiabennt", "minaaaparkerx", "yourcindyrellaa", "samanthaeverly33", "lowmonaxx", "zara_amaya_", "deannaritter98", "sophie.tulips", "fromchurch.toprison", "naomi_wonng"];
+    const search = document.getElementById("search");
+    const cards = Array.from(document.querySelectorAll(".card"));
+    const empty = document.getElementById("empty");
+    const count = document.getElementById("count");
+
+    function render() {
+      const query = search.value.trim().toLowerCase();
+      let shown = 0;
+      cards.forEach((card) => {
+        const match = !query || card.dataset.username.includes(query);
+        card.hidden = !match;
+        if (match) shown += 1;
+      });
+      empty.hidden = shown !== 0;
+      count.textContent = shown + " of " + usernames.length + " accounts";
+    }
+
+    search.addEventListener("input", render);
+    cards.forEach((card) => {
+      card.addEventListener("click", (event) => {
+        const target = event.target;
+        if (target.closest(".reels-link") || target.closest("a")) return;
+        const thumb = card.querySelector(".thumb");
+        if (thumb) window.open(thumb.href, "_blank", "noopener");
+      });
+    });
+    render();
+  </script>
+</body>
+</html>

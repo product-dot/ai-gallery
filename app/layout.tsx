@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Venus Tech Content Library",
+  title: "Eligible accounts",
   description:
-    "Tagged Instagram Reels grouped by consolidated format. Thumbnails only; original posts open on Instagram.",
+    "Weekly selected Instagram reel links. Public Instagram URLs only.",
 };
 
 export default function RootLayout({

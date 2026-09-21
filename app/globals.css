@@ -41,6 +41,24 @@ h1 {
   margin: 0;
 }
 
+.nav {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.85rem;
+}
+
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.nav a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
 .filters {
   display: flex;
   gap: 12px;
@@ -48,6 +66,44 @@ h1 {
   max-width: 1200px;
   margin: 0 auto 8px;
   padding: 0 24px 24px;
+}
+
+.week-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 8px;
+}
+
+.week-tab {
+  font: 14px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-tab:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.week-tab.active {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--ink);
+  font-weight: 600;
+}
+
+.week-tab-count {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 input,
@@ -169,4 +225,142 @@ a.btn {
   margin: 40px auto;
   padding: 0 24px;
   color: var(--muted);
+}
+
+.visual-library .filters {
+  align-items: center;
+}
+
+.visual-library .filters input[type="search"] {
+  width: min(420px, 100%);
+  min-width: 0;
+}
+
+.visual-library .count {
+  margin: 0;
+  color: var(--muted);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.9rem;
+}
+
+.visual-library .grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 24px 48px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.visual-library .card {
+  box-shadow: none;
+  min-width: 0;
+}
+
+.visual-library .thumb {
+  position: relative;
+  aspect-ratio: 1;
+  background: #ece7dd;
+  color: inherit;
+  text-decoration: none;
+}
+
+.visual-library .thumb img,
+.visual-library .placeholder {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.visual-library .placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+}
+
+.visual-library .views-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  margin: 0;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+}
+
+.visual-library .body {
+  padding: 12px 14px 16px;
+  gap: 6px;
+}
+
+.visual-library .username {
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.visual-library .username:hover {
+  text-decoration: underline;
+}
+
+.visual-library .views-stat {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.visual-library .followers {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.visual-library .reason {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.visual-library .caption {
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.visual-library .muted {
+  color: var(--muted);
+}
+
+.visual-library .stats {
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.visual-library .reels-link {
+  margin-top: auto;
+  padding-top: 10px;
+  font-size: 0.82rem;
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.visual-library .empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
 }

@@ -1,0 +1,5 @@
+# Accounts reviewed out of the weekly set. username,reason
+baskandlatherco,excluded_false_positive_vip
+bodytheentertainer3,excluded_manual_not_of_creator
+capthooksenpai,excluded_manual_low_reach
+deenpeezy,excluded_manual_couple_account

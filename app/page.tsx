@@ -1,20 +1,25 @@
-import libraryData from "../data/library.json";
-import LibraryBrowser from "./LibraryBrowser";
-import type { LibraryData } from "./types";
+import WeekLibrary from "./WeekLibrary";
+import { loadWeekSnapshots } from "@/lib/loadEligible";
+import { isoWeekId } from "@/lib/eligible";
 
-const data = libraryData as LibraryData;
+export const dynamic = "force-dynamic";
 
 export default function HomePage() {
+  const weeks = loadWeekSnapshots();
+  const current = weeks.find((week) => week.id === isoWeekId()) || weeks[0];
+  const count = current?.accounts.length ?? 0;
   return (
     <>
       <header>
-        <h1>Venus Tech content library</h1>
+        <h1>Eligible accounts</h1>
         <p className="lede">
-          Tagged Instagram Reels grouped by consolidated format. Thumbnails
-          only; original posts open on Instagram.
+          Weekly batches of {count || 40} selected reel links, including seeds.
+          Switch tabs to open a previous week. Photo or username opens that
+          reel; the text link opens the creator&apos;s Reels tab. Thumbnails
+          are resolved live and are not stored.
         </p>
       </header>
-      <LibraryBrowser data={data} />
+      <WeekLibrary weeks={weeks} />
     </>
   );
 }
