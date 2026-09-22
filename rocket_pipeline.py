@@ -28,8 +28,13 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from langdetect import LangDetectException, detect_langs
+from langdetect.detector_factory import DetectorFactory
 from rocketapi import InstagramAPI
 from rocketapi.exceptions import BadResponseException, NotFoundException
+
+# Deterministic langdetect results across runs.
+DetectorFactory.seed = 0
 
 ROOT = Path(__file__).resolve().parent
 SEEDS_PATH = ROOT / "seeds.txt"
@@ -64,6 +69,163 @@ MULTI_PEOPLE_RE = re.compile(r"\b(?:[2-9]|[1-9]\d+)\s+people\b", re.IGNORECASE)
 PEOPLE_RE = re.compile(r"\bpeople\b", re.IGNORECASE)
 TEXT_SAYS_RE = re.compile(r"text that says", re.IGNORECASE)
 
+# Soft US-signal heuristic for display order only. Low confidence, never an
+# eligibility/exclusion rule. Bio/location match first; English caption second.
+LANG_DETECT_MIN_PROB = 0.80
+LANG_DETECT_MIN_LETTERS = 8
+US_STATE_NAMES = (
+    "Alabama",
+    "Alaska",
+    "Arizona",
+    "Arkansas",
+    "California",
+    "Colorado",
+    "Connecticut",
+    "Delaware",
+    "Florida",
+    "Georgia",
+    "Hawaii",
+    "Idaho",
+    "Illinois",
+    "Indiana",
+    "Iowa",
+    "Kansas",
+    "Kentucky",
+    "Louisiana",
+    "Maine",
+    "Maryland",
+    "Massachusetts",
+    "Michigan",
+    "Minnesota",
+    "Mississippi",
+    "Missouri",
+    "Montana",
+    "Nebraska",
+    "Nevada",
+    "New Hampshire",
+    "New Jersey",
+    "New Mexico",
+    "New York",
+    "North Carolina",
+    "North Dakota",
+    "Ohio",
+    "Oklahoma",
+    "Oregon",
+    "Pennsylvania",
+    "Rhode Island",
+    "South Carolina",
+    "South Dakota",
+    "Tennessee",
+    "Texas",
+    "Utah",
+    "Vermont",
+    "Virginia",
+    "Washington",
+    "West Virginia",
+    "Wisconsin",
+    "Wyoming",
+    "District of Columbia",
+)
+US_CITY_NAMES = (
+    "New York City",
+    "Los Angeles",
+    "Chicago",
+    "Houston",
+    "Phoenix",
+    "Philadelphia",
+    "San Antonio",
+    "San Diego",
+    "Dallas",
+    "San Jose",
+    "Austin",
+    "Jacksonville",
+    "Fort Worth",
+    "Columbus",
+    "Charlotte",
+    "San Francisco",
+    "Indianapolis",
+    "Seattle",
+    "Denver",
+    "Boston",
+    "Nashville",
+    "Detroit",
+    "Portland",
+    "Las Vegas",
+    "Miami Beach",
+    "Miami",
+    "Atlanta",
+    "Minneapolis",
+    "Cleveland",
+    "Tampa",
+    "Orlando",
+    "Pittsburgh",
+    "Cincinnati",
+    "Sacramento",
+    "Kansas City",
+    "St. Louis",
+    "Saint Louis",
+    "Baltimore",
+    "Milwaukee",
+    "Raleigh",
+    "Omaha",
+    "Colorado Springs",
+    "Virginia Beach",
+    "Oakland",
+    "Tulsa",
+    "Arlington",
+    "Wichita",
+    "Bakersfield",
+    "Anaheim",
+    "Honolulu",
+    "Long Beach",
+    "Fresno",
+    "Scottsdale",
+    "Fort Lauderdale",
+    "West Palm Beach",
+    "Palm Beach",
+    "Boca Raton",
+    "Naples",
+    "New Orleans",
+    "Salt Lake City",
+    "Albuquerque",
+    "Tucson",
+    "Brooklyn",
+    "Manhattan",
+    "Hollywood",
+    "Beverly Hills",
+    "Malibu",
+    "Santa Monica",
+    "Newport Beach",
+    "Irvine",
+    "Pasadena",
+    "Berkeley",
+    "Palo Alto",
+    "Jersey City",
+    "Newark",
+    "Buffalo",
+    "Memphis",
+    "Louisville",
+    "Richmond",
+    "Norfolk",
+    "Savannah",
+    "Charleston",
+    "Asheville",
+    "Boulder",
+    "Aspen",
+    "Waikiki",
+)
+_US_GEO_TERMS = sorted((*US_STATE_NAMES, *US_CITY_NAMES), key=len, reverse=True)
+US_GEO_RE = re.compile(
+    r"\b(?:USA|U\.S\.A\.?|U\.S\.|United States(?: of America)?|"
+    + "|".join(re.escape(term) for term in _US_GEO_TERMS)
+    + r")\b",
+    re.IGNORECASE,
+)
+# 2-letter city tags are matched case-sensitively to avoid "la"/"ny" false hits.
+US_CITY_ABBREV_RE = re.compile(
+    r"(?<![A-Za-z])(?:L\.A\.|N\.Y\.C\.|N\.Y\.|S\.F\.|D\.C\.|LA|NYC|NY|SF|DC)(?![A-Za-z])"
+)
+
 REQUEST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -94,6 +256,10 @@ OUTPUT_FIELDS = [
     "profile_pic_url",
     "thumbnail_url",
     "thumbnail_path",
+    # us_signal is a low-confidence heuristic, not a verified fact.
+    # Never use it to exclude an account; it only prioritizes display order.
+    "us_signal",
+    "us_signal_source",
 ]
 
 WEEK_LINK_FIELDS = [
@@ -266,6 +432,41 @@ def external_url_of(user: dict[str, Any]) -> str:
             if isinstance(link, dict) and link.get("url"):
                 return str(link["url"]).strip()
     return ""
+
+
+def profile_location_text(user: dict[str, Any]) -> str:
+    """Pull city/location strings from a RocketAPI profile payload, if present."""
+    if not isinstance(user, dict):
+        return ""
+    parts: list[str] = []
+    for key in ("city_name", "city", "address_street"):
+        value = user.get(key)
+        if value:
+            parts.append(str(value))
+    location = user.get("location")
+    if isinstance(location, dict):
+        for key in ("name", "city", "city_name", "short_name", "address"):
+            value = location.get(key)
+            if value:
+                parts.append(str(value))
+    elif location:
+        parts.append(str(location))
+    raw_address = user.get("business_address_json")
+    if raw_address:
+        parsed: Any = raw_address
+        if isinstance(raw_address, str):
+            try:
+                parsed = json.loads(raw_address)
+            except json.JSONDecodeError:
+                parsed = raw_address
+        if isinstance(parsed, dict):
+            for key in ("city_name", "city", "region_name", "street_address"):
+                value = parsed.get(key)
+                if value:
+                    parts.append(str(value))
+        elif parsed:
+            parts.append(str(parsed))
+    return " ".join(parts)
 
 
 def following_usernames(payload: Any) -> tuple[list[str], str | None]:
@@ -502,6 +703,97 @@ def bio_keyword_match(bio: str) -> bool:
     return False
 
 
+def bio_has_us_location(bio: str, location_text: str = "") -> bool:
+    blob = f"{location_text} {bio}".strip()
+    if not blob:
+        return False
+    return bool(US_GEO_RE.search(blob) or US_CITY_ABBREV_RE.search(blob))
+
+
+def caption_language_is_english(caption: str) -> bool:
+    """True only when langdetect returns English at LANG_DETECT_MIN_PROB.
+
+    Short, emoji-only, or failed detections return False — no further guessing.
+    """
+    text = str(caption or "").strip()
+    if not text:
+        return False
+    if len(re.findall(r"[A-Za-z]", text)) < LANG_DETECT_MIN_LETTERS:
+        return False
+    try:
+        guesses = detect_langs(text)
+    except LangDetectException:
+        return False
+    if not guesses:
+        return False
+    top = guesses[0]
+    return top.lang == "en" and float(top.prob) >= LANG_DETECT_MIN_PROB
+
+
+def compute_us_signal(
+    bio: str,
+    caption: str,
+    location_text: str = "",
+) -> tuple[bool, str]:
+    """Low-confidence US heuristic for display order. Never used to exclude.
+
+    Returns (us_signal, source) where source is "bio", "caption_language", or "none".
+    Bio/profile location is checked first; caption language only if that found nothing.
+    """
+    if bio_has_us_location(bio, location_text):
+        return True, "bio"
+    if caption_language_is_english(caption):
+        return True, "caption_language"
+    return False, "none"
+
+
+def attach_us_signal(row: dict[str, Any], user: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Set us_signal on a row that already has a selected reel. Does not exclude."""
+    if not row.get("selected_shortcode"):
+        row["us_signal"] = "false"
+        row["us_signal_source"] = "none"
+        return row
+    signal, source = compute_us_signal(
+        bio=str(row.get("bio") or ""),
+        caption=str(row.get("caption") or ""),
+        location_text=profile_location_text(user or {}),
+    )
+    row["us_signal"] = "true" if signal else "false"
+    row["us_signal_source"] = source
+    return row
+
+
+def us_signal_is_true(row: dict[str, Any]) -> bool:
+    return str(row.get("us_signal") or "").strip().lower() == "true"
+
+
+def apply_us_signals(rows: list[dict[str, Any]]) -> None:
+    """Fill missing us_signal values from stored bio/caption. Never excludes."""
+    for row in rows:
+        if not row.get("selected_shortcode"):
+            row["us_signal"] = "false"
+            row["us_signal_source"] = "none"
+            continue
+        if str(row.get("us_signal") or "").strip():
+            continue
+        signal, source = compute_us_signal(
+            bio=str(row.get("bio") or ""),
+            caption=str(row.get("caption") or ""),
+        )
+        row["us_signal"] = "true" if signal else "false"
+        row["us_signal_source"] = source
+
+
+def sort_us_signal_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """us_signal=true rows first; every other row keeps its original relative order.
+
+    Do not re-sort by view count or any other field. Display order only.
+    """
+    flagged = [row for row in rows if us_signal_is_true(row)]
+    rest = [row for row in rows if not us_signal_is_true(row)]
+    return flagged + rest
+
+
 def page_has_adult_domain(html: str) -> bool:
     lowered = html.lower()
     return any(domain in lowered for domain in ADULT_DOMAINS)
@@ -706,6 +998,10 @@ def looks_like_couple(*texts: str) -> bool:
 
 
 def is_selected_row(row: dict[str, Any] | None) -> bool:
+    """True when the account has a selected reel and was not excluded.
+
+    us_signal is a display-order heuristic only and must never be consulted here.
+    """
     if not row:
         return False
     return bool(row.get("selected_shortcode") and not row.get("exclusion_reason"))
@@ -821,30 +1117,36 @@ def evaluate_candidate(
         ), js_row
 
     if not vetted and view_count(selected) < MIN_REEL_VIEWS:
-        return blank_result(
-            **base,
-            selected_shortcode=selected.get("code") or selected.get("shortcode") or "",
-            viewCount=view_count(selected),
-            exclusion_reason="excluded_low_views",
+        return attach_us_signal(
+            blank_result(
+                **base,
+                selected_shortcode=selected.get("code") or selected.get("shortcode") or "",
+                viewCount=view_count(selected),
+                exclusion_reason="excluded_low_views",
+            ),
+            user,
         ), js_row
 
-    return blank_result(
-        **base,
-        selected_shortcode=selected.get("code") or selected.get("shortcode") or "",
-        caption=caption_text(selected),
-        likesCount=selected.get("like_count", ""),
-        commentsCount=selected.get("comment_count", ""),
-        viewCount=view_count(selected),
-        accessibility_caption=find_accessibility_caption(selected),
-        thumbnail_url=thumbnail_for_reel(selected),
-        exclusion_reason="",
+    return attach_us_signal(
+        blank_result(
+            **base,
+            selected_shortcode=selected.get("code") or selected.get("shortcode") or "",
+            caption=caption_text(selected),
+            likesCount=selected.get("like_count", ""),
+            commentsCount=selected.get("comment_count", ""),
+            viewCount=view_count(selected),
+            accessibility_caption=find_accessibility_caption(selected),
+            thumbnail_url=thumbnail_for_reel(selected),
+            exclusion_reason="",
+        ),
+        user,
     ), js_row
 
 
 def persist_eligibility(
     by_name: dict[str, dict[str, Any]],
     original_order: list[str],
-) -> None:
+) -> list[dict[str, Any]]:
     ordered: list[dict[str, Any]] = []
     seen: set[str] = set()
     for name in original_order:
@@ -856,7 +1158,10 @@ def persist_eligibility(
         if name not in seen:
             ordered.append(row)
             seen.add(name)
+    apply_us_signals(ordered)
+    ordered = sort_us_signal_first(ordered)
     write_csv(ELIGIBLE_PATH, OUTPUT_FIELDS, ordered)
+    return ordered
 
 
 def run_eligibility(
@@ -951,8 +1256,11 @@ def run_eligibility(
             time.sleep(delay)
 
     write_csv(NEEDS_JS_PATH, ["username", "external_url", "reason"], js_rows)
-    gui_rows = [row for row in (by_name.get(name) for name in original_order) if is_selected_row(row)]
+    ordered = persist_eligibility(by_name, original_order)
+    gui_rows = [row for row in ordered if is_selected_row(row)]
+    us_n = sum(1 for row in gui_rows if us_signal_is_true(row))
     print(f"\nSelected {len(gui_rows)} account(s) → {ELIGIBLE_PATH}")
+    print(f"US-signal display priority (heuristic only, not an exclusion): {us_n}/{len(gui_rows)}")
     print(f"JS-render unknowns: {len(js_rows)} → {NEEDS_JS_PATH}")
     return gui_rows
 
@@ -1018,6 +1326,7 @@ def card_html(row: dict[str, Any]) -> str:
 
 
 def write_html(rows: list[dict[str, Any]]) -> None:
+    """Render cards in the given order (US-signal rows first; relative order unchanged)."""
     cards = "\n".join(card_html(row) for row in rows)
     names = [row.get("username") or "" for row in rows]
     page = f"""<!DOCTYPE html>
@@ -1240,10 +1549,19 @@ def load_all_eligible_rows(path: Path) -> list[dict[str, Any]]:
         return list(csv.DictReader(handle))
 
 
+def finalize_eligible_csv() -> list[dict[str, Any]]:
+    """Backfill us_signal on the saved CSV and rewrite it in display order."""
+    rows = load_all_eligible_rows(ELIGIBLE_PATH)
+    apply_us_signals(rows)
+    rows = sort_us_signal_first(rows)
+    write_csv(ELIGIBLE_PATH, OUTPUT_FIELDS, rows)
+    return [row for row in rows if is_selected_row(row)]
+
+
 def main() -> None:
     args = parse_args()
     if args.gui_only:
-        rows = load_gui_rows(ELIGIBLE_PATH)
+        rows = finalize_eligible_csv()
         archive_week(rows)
         write_html(rows)
         return

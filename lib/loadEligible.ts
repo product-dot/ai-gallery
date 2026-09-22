@@ -88,6 +88,8 @@ function emptyAccount(): EligibleAccount {
     profile_pic_url: "",
     thumbnail_url: "",
     thumbnail_path: "",
+    us_signal: "",
+    us_signal_source: "",
   };
 }
 
