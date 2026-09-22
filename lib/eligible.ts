@@ -17,6 +17,8 @@ export type EligibleAccount = {
   profile_pic_url: string;
   thumbnail_url: string;
   thumbnail_path: string;
+  us_signal: string;
+  us_signal_source: string;
 };
 
 export function formatCount(value: string): string {
