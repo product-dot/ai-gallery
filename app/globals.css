@@ -68,6 +68,17 @@ h1 {
   padding: 0 24px 24px;
 }
 
+.review-warning {
+  max-width: 1200px;
+  margin: 0 auto 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  background: #fdecea;
+  color: var(--accent);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.88rem;
+}
+
 .week-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -104,6 +115,15 @@ h1 {
 .week-tab-count {
   font-size: 0.75rem;
   color: var(--muted);
+}
+
+.week-tab-rejected {
+  margin-left: 8px;
+}
+
+.week-tab-rejected.active {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 input,
@@ -363,4 +383,73 @@ a.btn {
   grid-column: 1 / -1;
   margin: 0;
   padding: 0;
+}
+
+.review-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.review-btn {
+  font: 600 0.82rem/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 7px 10px;
+  cursor: pointer;
+  flex: 1;
+  border: 1px solid transparent;
+}
+
+.review-btn.accept {
+  background: #e8f5e9;
+  border-color: #2e7d32;
+  color: #1b5e20;
+}
+
+.review-btn.accept:hover,
+.review-btn.accept.active {
+  background: #2e7d32;
+  border-color: #2e7d32;
+  color: #fff;
+}
+
+.review-btn.reject {
+  background: #fdecea;
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.review-btn.reject:hover,
+.review-btn.reject.active {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}
+
+.card-accepted {
+  box-shadow: inset 0 0 0 2px #2e7d32;
+}
+
+.card-rejected {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.reason-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.reason-box textarea {
+  font: 14px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  min-width: 0;
+  width: 100%;
+  resize: vertical;
 }

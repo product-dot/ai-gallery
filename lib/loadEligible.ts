@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "fs";
 import path from "path";
-import type { EligibleAccount, WeekSnapshot } from "./eligible";
+import { isoWeekId, type EligibleAccount, type WeekSnapshot } from "./eligible";
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -130,6 +130,23 @@ export function loadWeekSnapshots(): WeekSnapshot[] {
     })
     .filter((week): week is WeekSnapshot => week !== null)
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+
+  const live = loadEligibleAccounts();
+  const currentId = isoWeekId();
+  if (live.length > 0) {
+    const current = weeks.find((week) => week.id === currentId);
+    const merged: WeekSnapshot = {
+      id: currentId,
+      label: current?.label || "This week",
+      weekStart: current?.weekStart || "",
+      weekEnd: current?.weekEnd || "",
+      savedAt: current?.savedAt || "",
+      // Latest CSV wins so new selected reels show Accept/Reject immediately.
+      accounts: live,
+    };
+    const others = weeks.filter((week) => week.id !== currentId);
+    return [merged, ...others];
+  }
 
   if (weeks.length > 0) return weeks;
 
