@@ -9,7 +9,11 @@ import {
   selectionReason,
   type EligibleAccount,
 } from "@/lib/eligible";
-import { reviewKey, type ReelReview, type ReviewStatus } from "@/lib/reviewTypes";
+import {
+  reviewKey,
+  type ReelReview,
+  type ReviewPatch,
+} from "@/lib/reviewTypes";
 
 function ReelThumb({ account }: { account: EligibleAccount }) {
   const shortcode = account.selected_shortcode;
@@ -73,6 +77,100 @@ function ReasonBox({
   );
 }
 
+function CreatorBox({
+  username,
+  usedForCreator,
+  creatorNames,
+  onSave,
+}: {
+  username: string;
+  usedForCreator: boolean;
+  creatorNames: string[];
+  onSave: (usedForCreator: boolean, creatorNames: string[]) => void;
+}) {
+  const [used, setUsed] = useState(usedForCreator);
+  const [names, setNames] = useState(
+    creatorNames.length > 0 ? creatorNames : [""]
+  );
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) {
+      setUsed(usedForCreator);
+      setNames(creatorNames.length > 0 ? creatorNames : [""]);
+    }
+  }, [usedForCreator, creatorNames]);
+
+  useEffect(() => {
+    const sameUsed = used === usedForCreator;
+    const sameNames =
+      names.map((name) => name.trim()).filter(Boolean).join("\n") ===
+      creatorNames.map((name) => name.trim()).filter(Boolean).join("\n");
+    if (sameUsed && sameNames) return;
+    const timer = window.setTimeout(() => onSave(used, names), 450);
+    return () => window.clearTimeout(timer);
+  }, [used, names, usedForCreator, creatorNames, onSave]);
+
+  return (
+    <div className="creator-box">
+      <label className="creator-used">
+        <input
+          type="checkbox"
+          checked={used}
+          onChange={(event) => {
+            const next = event.target.checked;
+            setUsed(next);
+            onSave(next, names);
+          }}
+        />
+        Used for creator
+      </label>
+      {names.map((name, index) => (
+        <div className="creator-row" key={`creator-${index}`}>
+          <input
+            type="text"
+            value={name}
+            placeholder="Creator name"
+            aria-label={`Creator name ${index + 1} for @${username}`}
+            onFocus={() => {
+              focused.current = true;
+            }}
+            onBlur={() => {
+              focused.current = false;
+              onSave(used, names);
+            }}
+            onChange={(event) => {
+              const next = [...names];
+              next[index] = event.target.value;
+              setNames(next);
+            }}
+          />
+          {names.length > 1 ? (
+            <button
+              type="button"
+              className="creator-remove"
+              onClick={() => {
+                const next = names.filter((_, current) => current !== index);
+                setNames(next);
+                onSave(used, next);
+              }}
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+      ))}
+      <button
+        type="button"
+        className="creator-add"
+        onClick={() => setNames([...names, ""])}
+      >
+        Add another creator
+      </button>
+    </div>
+  );
+}
+
 export default function VisualLibrary({
   accounts,
   reviews,
@@ -81,12 +179,8 @@ export default function VisualLibrary({
 }: {
   accounts: EligibleAccount[];
   reviews: Record<string, ReelReview>;
-  mode: "queue" | "rejected";
-  onReview: (
-    account: EligibleAccount,
-    status: ReviewStatus,
-    reason?: string
-  ) => void;
+  mode: "queue" | "accepted" | "rejected";
+  onReview: (account: EligibleAccount, patch: ReviewPatch) => void;
 }) {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -117,7 +211,9 @@ export default function VisualLibrary({
             {accounts.length === 0
               ? mode === "rejected"
                 ? "No rejected reels this week."
-                : "No accounts with a selected reel yet."
+                : mode === "accepted"
+                  ? "No accepted reels this week."
+                  : "No accounts with a selected reel yet."
               : "No accounts match that username."}
           </p>
         ) : (
@@ -125,7 +221,7 @@ export default function VisualLibrary({
             const permalink = reelUrl(account.selected_shortcode);
             const reels = reelsTabUrl(account.username);
             const review = reviews[reviewKey(account)];
-            const status = review?.status;
+            const status = review?.status || "pending";
             return (
               <article
                 className={
@@ -181,7 +277,12 @@ export default function VisualLibrary({
                           ? "review-btn accept active"
                           : "review-btn accept"
                       }
-                      onClick={() => onReview(account, "accepted")}
+                      onClick={() =>
+                        onReview(account, {
+                          status:
+                            status === "accepted" ? "pending" : "accepted",
+                        })
+                      }
                     >
                       Accept
                     </button>
@@ -193,7 +294,10 @@ export default function VisualLibrary({
                           : "review-btn reject"
                       }
                       onClick={() =>
-                        onReview(account, "rejected", review?.reason || "")
+                        onReview(account, {
+                          status: "rejected",
+                          reason: review?.reason || "",
+                        })
                       }
                     >
                       Reject
@@ -203,7 +307,23 @@ export default function VisualLibrary({
                     <ReasonBox
                       username={account.username}
                       value={review?.reason || ""}
-                      onSave={(reason) => onReview(account, "rejected", reason)}
+                      onSave={(reason) =>
+                        onReview(account, { status: "rejected", reason })
+                      }
+                    />
+                  ) : null}
+                  {mode === "accepted" ? (
+                    <CreatorBox
+                      username={account.username}
+                      usedForCreator={Boolean(review?.usedForCreator)}
+                      creatorNames={review?.creatorNames || []}
+                      onSave={(usedForCreator, creatorNames) =>
+                        onReview(account, {
+                          status: "accepted",
+                          usedForCreator,
+                          creatorNames,
+                        })
+                      }
                     />
                   ) : null}
                   <a

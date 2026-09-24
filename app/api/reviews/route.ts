@@ -57,6 +57,8 @@ export async function PUT(request: NextRequest) {
     status?: ReviewStatus;
     reason?: string;
     shortcode?: string;
+    usedForCreator?: boolean;
+    creatorNames?: string[];
   };
   try {
     body = (await request.json()) as typeof body;
@@ -74,14 +76,17 @@ export async function PUT(request: NextRequest) {
   if (!SHORTCODE_RE.test(shortcode)) {
     return NextResponse.json({ error: "Invalid shortcode" }, { status: 400 });
   }
-  if (status !== "accepted" && status !== "rejected") {
+  if (status !== "accepted" && status !== "rejected" && status !== "pending") {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
   const saved = await saveReviewSafe(weekId, username, {
     status,
-    reason: String(body.reason ?? ""),
+    reason: body.reason !== undefined ? String(body.reason) : undefined,
     shortcode,
+    usedForCreator:
+      typeof body.usedForCreator === "boolean" ? body.usedForCreator : undefined,
+    creatorNames: Array.isArray(body.creatorNames) ? body.creatorNames : undefined,
   });
   return NextResponse.json({
     ...saved,

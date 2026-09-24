@@ -1,11 +1,20 @@
-export type ReviewStatus = "accepted" | "rejected";
+export type ReviewStatus = "accepted" | "rejected" | "pending";
 
 export type ReelReview = {
   status: ReviewStatus;
   reason: string;
   shortcode: string;
   username: string;
+  usedForCreator: boolean;
+  creatorNames: string[];
   updatedAt: string;
+};
+
+export type ReviewPatch = {
+  status?: ReviewStatus;
+  reason?: string;
+  usedForCreator?: boolean;
+  creatorNames?: string[];
 };
 
 /** weekId -> reel shortcode -> review */

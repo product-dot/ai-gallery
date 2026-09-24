@@ -48,15 +48,39 @@ async function getDb(): Promise<Db> {
   return db;
 }
 
+export function normalizeCreatorNames(names: unknown): string[] {
+  if (!Array.isArray(names)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    const trimmed = String(name || "").trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+    if (out.length >= 20) break;
+  }
+  return out;
+}
+
 function asReview(raw: unknown): ReelReview | null {
   if (!raw || typeof raw !== "object") return null;
   const row = raw as Partial<ReelReview>;
-  if (row.status !== "accepted" && row.status !== "rejected") return null;
+  if (
+    row.status !== "accepted" &&
+    row.status !== "rejected" &&
+    row.status !== "pending"
+  ) {
+    return null;
+  }
   return {
     status: row.status,
     reason: String(row.reason || ""),
     shortcode: String(row.shortcode || ""),
     username: String(row.username || ""),
+    usedForCreator: Boolean(row.usedForCreator),
+    creatorNames: normalizeCreatorNames(row.creatorNames),
     updatedAt: String(row.updatedAt || ""),
   };
 }
@@ -110,10 +134,17 @@ function buildReview(
     reason: patch.reason ?? prev?.reason ?? "",
     shortcode: patch.shortcode ?? prev?.shortcode ?? "",
     username: username || prev?.username || "",
+    usedForCreator: patch.usedForCreator ?? prev?.usedForCreator ?? false,
+    creatorNames: normalizeCreatorNames(
+      patch.creatorNames ?? prev?.creatorNames ?? []
+    ),
     updatedAt: new Date().toISOString(),
   };
   if (next.status === "accepted") {
     next.reason = "";
+  }
+  if (next.status === "rejected") {
+    next.usedForCreator = false;
   }
   return next;
 }
