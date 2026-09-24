@@ -88,6 +88,20 @@ h1 {
   padding: 0 24px 8px;
 }
 
+.week-panel {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.week-panes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 24px 16px;
+}
+
 .week-tab {
   font: 14px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 8px 12px;
@@ -117,8 +131,40 @@ h1 {
   color: var(--muted);
 }
 
+.accepted-links {
+  margin: 0 0 12px;
+  padding: 0 24px;
+}
+
+.accepted-links-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.accepted-links textarea {
+  width: 100%;
+  min-width: 0;
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  resize: vertical;
+}
+
+.week-tab-accepted,
 .week-tab-rejected {
-  margin-left: 8px;
+  margin-left: 0;
+}
+
+.week-tab-accepted.active {
+  border-color: #2e7d32;
+  color: #1b5e20;
 }
 
 .week-tab-rejected.active {
@@ -452,4 +498,56 @@ a.btn {
   min-width: 0;
   width: 100%;
   resize: vertical;
+}
+
+.creator-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.creator-used {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ink);
+}
+
+.creator-used input {
+  min-width: 0;
+  width: auto;
+  accent-color: #2e7d32;
+}
+
+.creator-row {
+  display: flex;
+  gap: 6px;
+}
+
+.creator-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.creator-add,
+.creator-remove {
+  font: 600 0.75rem/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.creator-add {
+  width: fit-content;
+}
+
+.creator-add:hover,
+.creator-remove:hover {
+  color: var(--ink);
+  border-color: var(--ink);
 }
