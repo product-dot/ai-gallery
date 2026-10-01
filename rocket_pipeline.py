@@ -1063,6 +1063,21 @@ def previous_week_usage(current_id: str) -> tuple[set[str], set[str]]:
     return shortcodes, usernames
 
 
+def counts_for_current_week(
+    row: dict[str, Any] | None,
+    used_shortcodes: set[str],
+    used_usernames: set[str],
+) -> bool:
+    """True when a selected reel is new this week, not a prior-week account."""
+    if not is_selected_row(row):
+        return False
+    name = normalize_username(row.get("username"))
+    code = str((row or {}).get("selected_shortcode") or "").strip()
+    if name in used_usernames or (code and code in used_shortcodes):
+        return False
+    return True
+
+
 def release_prior_week_rows(
     by_name: dict[str, dict[str, Any]],
     used_shortcodes: set[str],
@@ -1279,7 +1294,11 @@ def run_eligibility(
     used_shortcodes, used_usernames = previous_week_usage(current_id)
     released = release_prior_week_rows(by_name, used_shortcodes)
 
-    passed = sum(1 for row in by_name.values() if is_selected_row(row))
+    passed = sum(
+        1
+        for row in by_name.values()
+        if counts_for_current_week(row, used_shortcodes, used_usernames)
+    )
     persist_eligibility(by_name, original_order)
     if released:
         print(
@@ -1305,7 +1324,9 @@ def run_eligibility(
             break
 
         print(f"Eligibility {index}/{total}: {username}  (selected {passed}/{target})")
-        old_selected = is_selected_row(by_name.get(key))
+        old_selected = counts_for_current_week(
+            by_name.get(key), used_shortcodes, used_usernames
+        )
         try:
             row, js_row = evaluate_candidate(
                 api,
@@ -1329,7 +1350,9 @@ def run_eligibility(
         by_name[key] = row
         if key not in original_order:
             original_order.append(key)
-        new_selected = is_selected_row(row)
+        new_selected = counts_for_current_week(
+            row, used_shortcodes, used_usernames
+        )
         if old_selected and not new_selected:
             passed -= 1
         elif not old_selected and new_selected:
@@ -1601,16 +1624,11 @@ def current_week_rows(
 ) -> list[dict[str, Any]]:
     """Selected reels for this ISO week only — never reuse last week's accounts."""
     used_shortcodes, used_usernames = previous_week_usage(iso_week_id(when))
-    out: list[dict[str, Any]] = []
-    for row in rows:
-        if not is_selected_row(row):
-            continue
-        name = normalize_username(row.get("username"))
-        code = str(row.get("selected_shortcode") or "").strip()
-        if name in used_usernames or (code and code in used_shortcodes):
-            continue
-        out.append(row)
-    return out
+    return [
+        row
+        for row in rows
+        if counts_for_current_week(row, used_shortcodes, used_usernames)
+    ]
 
 
 def archive_week(rows: list[dict[str, Any]], when: date | None = None) -> Path:
