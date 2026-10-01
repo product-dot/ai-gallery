@@ -1298,7 +1298,7 @@ def run_eligibility(
         already = key in by_name
         if already and not (refresh_seeds and is_vetted):
             continue
-        if key in used_usernames and not is_vetted:
+        if key in used_usernames:
             continue
         if passed >= target and not (refresh_seeds and is_vetted):
             print(f"\nReached {target} accounts with a selected reel; stopping.")
@@ -1596,15 +1596,32 @@ def week_range_label(start: date, end: date) -> str:
     return f"{start.strftime('%b')} {start.day} – {end.strftime('%b')} {end.day}, {end.year}"
 
 
+def current_week_rows(
+    rows: list[dict[str, Any]], when: date | None = None
+) -> list[dict[str, Any]]:
+    """Selected reels for this ISO week only — never reuse last week's accounts."""
+    used_shortcodes, used_usernames = previous_week_usage(iso_week_id(when))
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        if not is_selected_row(row):
+            continue
+        name = normalize_username(row.get("username"))
+        code = str(row.get("selected_shortcode") or "").strip()
+        if name in used_usernames or (code and code in used_shortcodes):
+            continue
+        out.append(row)
+    return out
+
+
 def archive_week(rows: list[dict[str, Any]], when: date | None = None) -> Path:
     """Save this week's selected reel links. No thumbnail files or CDN URLs."""
     when = when or date.today()
     week_id = iso_week_id(when)
     start, end = iso_week_bounds(when)
+    week_rows = current_week_rows(rows, when)
     accounts = [
         {field: str(row.get(field) or "") for field in WEEK_LINK_FIELDS}
-        for row in rows
-        if row.get("selected_shortcode") and not row.get("exclusion_reason")
+        for row in week_rows
     ]
     payload = {
         "id": week_id,
@@ -1651,7 +1668,7 @@ def finalize_eligible_csv() -> list[dict[str, Any]]:
 def main() -> None:
     args = parse_args()
     if args.gui_only:
-        rows = finalize_eligible_csv()
+        rows = current_week_rows(finalize_eligible_csv())
         archive_week(rows)
         write_html(rows)
         return
@@ -1689,8 +1706,9 @@ def main() -> None:
         seed_set,
         refresh_seeds=not args.no_refresh_seeds,
     )
-    archive_week(gui_rows)
-    write_html(gui_rows)
+    week_rows = current_week_rows(gui_rows)
+    archive_week(week_rows)
+    write_html(week_rows)
 
 
 if __name__ == "__main__":
