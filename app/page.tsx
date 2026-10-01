@@ -13,11 +13,11 @@ export default function HomePage() {
       <header>
         <h1>Eligible accounts</h1>
         <p className="lede">
-          Weekly batches of {count || 40} selected reel links, including seeds.
-          Switch weeks to open a previous batch. Accepted and Rejected stay
-          under that week. Photo or username opens that reel; the text link
-          opens the creator&apos;s Reels tab. Thumbnails are resolved live and
-          are not stored.
+          Weekly batches of {count || 40} selected reel links. Last week stays
+          in its own tab; this week is only that week&apos;s new finds.
+          Accepted and Rejected stay under the selected week. Photo or
+          username opens that reel; the text link opens the creator&apos;s
+          Reels tab. Thumbnails are resolved live and are not stored.
         </p>
       </header>
       <WeekLibrary weeks={weeks} />

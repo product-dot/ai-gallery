@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     let imageUrl = await ogImageFrom(embedUrl);
     if (!imageUrl) {
       imageUrl = await ogImageFrom(
-        `https://www.instagram.com/reel/${shortcode}/`
+        `https://www.instagram.com/p/${shortcode}/`
       );
     }
     if (!imageUrl) {

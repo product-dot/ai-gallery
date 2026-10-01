@@ -93,6 +93,39 @@ function emptyAccount(): EligibleAccount {
   };
 }
 
+function usernameOf(account: EligibleAccount): string {
+  return String(account.username || "").trim().toLowerCase();
+}
+
+function priorWeekUsage(
+  weeks: WeekSnapshot[],
+  currentId: string
+): { usernames: Set<string>; shortcodes: Set<string> } {
+  const usernames = new Set<string>();
+  const shortcodes = new Set<string>();
+  for (const week of weeks) {
+    if (week.id === currentId) continue;
+    for (const account of week.accounts) {
+      const user = usernameOf(account);
+      if (user) usernames.add(user);
+      const code = String(account.selected_shortcode || "").trim();
+      if (code) shortcodes.add(code);
+    }
+  }
+  return { usernames, shortcodes };
+}
+
+function isNewThisWeek(
+  account: EligibleAccount,
+  prior: { usernames: Set<string>; shortcodes: Set<string> }
+): boolean {
+  const code = String(account.selected_shortcode || "").trim();
+  if (!code || prior.shortcodes.has(code)) return false;
+  const user = usernameOf(account);
+  if (user && prior.usernames.has(user)) return false;
+  return true;
+}
+
 export function loadWeekSnapshots(): WeekSnapshot[] {
   const dir = path.join(process.cwd(), "data", "weeks");
   let names: string[] = [];
@@ -133,33 +166,41 @@ export function loadWeekSnapshots(): WeekSnapshot[] {
 
   const live = loadEligibleAccounts();
   const currentId = isoWeekId();
-  if (live.length > 0) {
-    const current = weeks.find((week) => week.id === currentId);
+  const prior = priorWeekUsage(weeks, currentId);
+  const current = weeks.find((week) => week.id === currentId);
+  const byShortcode = new Map<string, EligibleAccount>();
+  for (const row of current?.accounts || []) {
+    if (isNewThisWeek(row, prior)) byShortcode.set(row.selected_shortcode, row);
+  }
+  for (const row of live) {
+    if (isNewThisWeek(row, prior)) byShortcode.set(row.selected_shortcode, row);
+  }
+  const thisWeekAccounts = [...byShortcode.values()];
+  const others = weeks.filter((week) => week.id !== currentId);
+
+  if (thisWeekAccounts.length > 0 || current) {
     const merged: WeekSnapshot = {
       id: currentId,
       label: current?.label || "This week",
       weekStart: current?.weekStart || "",
       weekEnd: current?.weekEnd || "",
       savedAt: current?.savedAt || "",
-      // Latest CSV wins so new selected reels show Accept/Reject immediately.
-      accounts: live,
+      accounts: thisWeekAccounts,
     };
-    const others = weeks.filter((week) => week.id !== currentId);
     return [merged, ...others];
   }
 
-  if (weeks.length > 0) return weeks;
+  if (others.length > 0) return others;
 
-  const fallback = loadEligibleAccounts();
-  if (fallback.length === 0) return [];
+  if (live.length === 0) return [];
   return [
     {
-      id: "current",
+      id: currentId || "current",
       label: "This week",
       weekStart: "",
       weekEnd: "",
       savedAt: "",
-      accounts: fallback,
+      accounts: live.filter((row) => isNewThisWeek(row, prior)),
     },
   ];
 }
