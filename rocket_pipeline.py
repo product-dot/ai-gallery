@@ -883,7 +883,9 @@ def select_reel(
     reels: list[dict[str, Any]],
     extra_map: dict[str, str],
     delay: float,
+    used_shortcodes: set[str] | None = None,
 ) -> tuple[dict[str, Any] | None, int, str]:
+    used_shortcodes = used_shortcodes or set()
     ranked = sorted(reels, key=view_count, reverse=True)
     if ranked:
         log_collab_fields_once(ranked[0])
@@ -891,6 +893,10 @@ def select_reel(
     skip_history: list[str] = []
     for item in ranked:
         checked += 1
+        code = media_code(item)
+        if code and code in used_shortcodes:
+            skip_history.append("skipped_prior_week")
+            continue
         if is_collab_reel(item):
             skip_history.append("skipped_collab")
             continue
@@ -1007,11 +1013,81 @@ def is_selected_row(row: dict[str, Any] | None) -> bool:
     return bool(row.get("selected_shortcode") and not row.get("exclusion_reason"))
 
 
+SELECTION_CLEAR_FIELDS = (
+    "selected_shortcode",
+    "caption",
+    "likesCount",
+    "commentsCount",
+    "viewCount",
+    "accessibility_caption",
+    "is_collab",
+    "selection_note",
+    "reels_checked_before_pass",
+    "thumbnail_url",
+    "thumbnail_path",
+    "us_signal",
+    "us_signal_source",
+)
+
+
+def load_week_archives() -> list[dict[str, Any]]:
+    if not WEEKS_DIR.exists():
+        return []
+    weeks: list[dict[str, Any]] = []
+    for path in sorted(WEEKS_DIR.glob("*.json")):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict) and data.get("id"):
+            weeks.append(data)
+    return weeks
+
+
+def previous_week_usage(current_id: str) -> tuple[set[str], set[str]]:
+    """Shortcodes and usernames already used in archived weeks other than this one."""
+    shortcodes: set[str] = set()
+    usernames: set[str] = set()
+    for week in load_week_archives():
+        if week.get("id") == current_id:
+            continue
+        for account in week.get("accounts") or []:
+            if not isinstance(account, dict):
+                continue
+            code = str(account.get("selected_shortcode") or "").strip()
+            if code:
+                shortcodes.add(code)
+            name = normalize_username(account.get("username"))
+            if name:
+                usernames.add(name)
+    return shortcodes, usernames
+
+
+def release_prior_week_rows(
+    by_name: dict[str, dict[str, Any]],
+    used_shortcodes: set[str],
+) -> int:
+    """Drop last week's selected reels from the live CSV so this week can pick 40 new ones."""
+    released = 0
+    for row in by_name.values():
+        code = str(row.get("selected_shortcode") or "").strip()
+        if not code or code not in used_shortcodes:
+            continue
+        if row.get("exclusion_reason"):
+            continue
+        for field in SELECTION_CLEAR_FIELDS:
+            row[field] = ""
+        row["selection_note"] = "used_prior_week"
+        released += 1
+    return released
+
+
 def evaluate_candidate(
     api: InstagramAPI,
     username: str,
     delay: float,
     vetted: bool = False,
+    used_shortcodes: set[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, str] | None]:
     js_row = None
     profile = fetch_profile(api, username)
@@ -1090,7 +1166,9 @@ def evaluate_candidate(
         ), js_row
 
     extra_map = collect_accessibility_by_code(profile)
-    selected, checked, note = select_reel(api, reels, extra_map, delay)
+    selected, checked, note = select_reel(
+        api, reels, extra_map, delay, used_shortcodes
+    )
     base = {
         "username": username,
         "followers": followers,
@@ -1197,9 +1275,18 @@ def run_eligibility(
             js_rows = [row for row in csv.DictReader(handle) if row.get("username")]
     js_seen = {normalize_username(row.get("username")) for row in js_rows}
 
+    current_id = iso_week_id()
+    used_shortcodes, used_usernames = previous_week_usage(current_id)
+    released = release_prior_week_rows(by_name, used_shortcodes)
+
     passed = sum(1 for row in by_name.values() if is_selected_row(row))
     persist_eligibility(by_name, original_order)
-    print(f"Resuming with {passed} already selected (target {target})")
+    if released:
+        print(
+            f"Released {released} prior-week reel(s) from the live CSV "
+            f"(kept under {WEEKS_DIR})"
+        )
+    print(f"Resuming with {passed} already selected this week (target {target})")
 
     total = len(usernames)
     for index, username in enumerate(usernames, start=1):
@@ -1210,6 +1297,8 @@ def run_eligibility(
             continue
         already = key in by_name
         if already and not (refresh_seeds and is_vetted):
+            continue
+        if key in used_usernames and not is_vetted:
             continue
         if passed >= target and not (refresh_seeds and is_vetted):
             print(f"\nReached {target} accounts with a selected reel; stopping.")
@@ -1223,6 +1312,7 @@ def run_eligibility(
                 username,
                 delay,
                 vetted=is_vetted,
+                used_shortcodes=used_shortcodes,
             )
         except NotFoundException:
             row, js_row = blank_result(username, exclusion_reason="not found"), None
@@ -1288,7 +1378,7 @@ def selection_reason_label(row: dict[str, Any]) -> str:
 def card_html(row: dict[str, Any]) -> str:
     username = row.get("username") or ""
     shortcode = row.get("selected_shortcode") or ""
-    permalink = f"https://www.instagram.com/reel/{shortcode}/"
+    permalink = f"https://www.instagram.com/p/{shortcode}/"
     reels_link = f"https://www.instagram.com/{username}/reels/"
     caption = (row.get("caption") or "").strip()
     caption_html = html.escape(caption) if caption else '<span class="muted">No caption</span>'

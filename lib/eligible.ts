@@ -42,7 +42,11 @@ export function formatViews(value: string): string {
 }
 
 export function reelUrl(shortcode: string): string {
-  return `https://www.instagram.com/reel/${shortcode}/`;
+  const code = String(shortcode || "").trim();
+  if (!code) return "";
+  // /reel/{code} often dumps a logged-in browser into the Reels feed
+  // (a different video). /p/{code} is the stable post permalink.
+  return `https://www.instagram.com/p/${code}/`;
 }
 
 export function reelsTabUrl(username: string): string {
