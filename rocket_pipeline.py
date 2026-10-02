@@ -292,6 +292,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not re-fetch top reels for seed accounts already in the CSV.",
     )
+    parser.add_argument(
+        "--following-limit",
+        type=int,
+        default=FOLLOWING_LIMIT,
+        help="Max following usernames to pull per seed during discovery.",
+    )
     return parser.parse_args()
 
 
@@ -492,27 +498,32 @@ def following_usernames(payload: Any) -> tuple[list[str], str | None]:
     return found, str(next_max_id)
 
 
-def fetch_following(api: InstagramAPI, user_id: int) -> list[str]:
+def fetch_following(
+    api: InstagramAPI, user_id: int, limit: int = FOLLOWING_LIMIT
+) -> list[str]:
     collected: list[str] = []
     seen: set[str] = set()
     max_id = None
-    while len(collected) < FOLLOWING_LIMIT:
-        remaining = FOLLOWING_LIMIT - len(collected)
-        payload = api.get_user_following(user_id, count=min(remaining, FOLLOWING_LIMIT), max_id=max_id)
+    page = min(FOLLOWING_LIMIT, max(limit, 1))
+    while len(collected) < limit:
+        remaining = limit - len(collected)
+        payload = api.get_user_following(
+            user_id, count=min(remaining, page), max_id=max_id
+        )
         names, next_max_id = following_usernames(payload)
         for username in names:
             if username in seen:
                 continue
             seen.add(username)
             collected.append(username)
-            if len(collected) >= FOLLOWING_LIMIT:
+            if len(collected) >= limit:
                 break
         if not next_max_id or next_max_id == max_id:
             break
         max_id = next_max_id
-        if len(collected) < FOLLOWING_LIMIT:
+        if len(collected) < limit:
             time.sleep(PAGE_DELAY_SECONDS)
-    return collected[:FOLLOWING_LIMIT]
+    return collected[:limit]
 
 
 def extract_media_items(media: Any) -> tuple[list[dict[str, Any]], str | None]:
@@ -932,7 +943,12 @@ def append_row(path: Path, fieldnames: list[str], row: dict[str, Any], first: bo
         writer.writerow(row)
 
 
-def run_discovery(api: InstagramAPI, seeds: list[str], delay: float) -> list[dict[str, str]]:
+def run_discovery(
+    api: InstagramAPI,
+    seeds: list[str],
+    delay: float,
+    following_limit: int = FOLLOWING_LIMIT,
+) -> list[dict[str, str]]:
     candidates: dict[str, set[str]] = {}
     seed_set = set(seeds)
     total = len(seeds)
@@ -947,7 +963,7 @@ def run_discovery(api: InstagramAPI, seeds: list[str], delay: float) -> list[dic
                 time.sleep(delay)
                 continue
             time.sleep(PAGE_DELAY_SECONDS)
-            names = fetch_following(api, uid)
+            names = fetch_following(api, uid, following_limit)
             added = 0
             for username in names:
                 if username in seed_set:
@@ -1698,7 +1714,7 @@ def main() -> None:
     print(f"Loaded {len(seeds)} seed(s) from {SEEDS_PATH}")
 
     if not args.eligibility_only:
-        run_discovery(api, seeds, args.delay)
+        run_discovery(api, seeds, args.delay, following_limit=args.following_limit)
     if args.discovery_only:
         return
 
