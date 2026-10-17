@@ -19,7 +19,9 @@ import json
 import os
 import re
 import sys
+import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -54,6 +56,9 @@ MIN_FOLLOWERS = 10_000  # non-seeds; 1k-follower pages are not usable
 MIN_REEL_VIEWS = 10_000  # non-seeds; 4k-view reels are not in-range
 DELAY_SECONDS = 1.5
 PAGE_DELAY_SECONDS = 0.75
+DEFAULT_WORKERS = 4
+_LANGDETECT_LOCK = threading.Lock()
+_THREAD_LOCAL = threading.local()
 EMPTY_TEXT_CHARS = 200
 EMPTY_HTML_CHARS = 1500
 
@@ -298,6 +303,12 @@ def parse_args() -> argparse.Namespace:
         default=FOLLOWING_LIMIT,
         help="Max following usernames to pull per seed during discovery.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help="Parallel eligibility workers. Use 1 for sequential.",
+    )
     return parser.parse_args()
 
 
@@ -307,6 +318,14 @@ def load_api() -> InstagramAPI:
     if not token:
         sys.exit("Missing ROCKETAPI_TOKEN in .env")
     return InstagramAPI(token=token, max_timeout=60)
+
+
+def thread_api() -> InstagramAPI:
+    api = getattr(_THREAD_LOCAL, "api", None)
+    if api is None:
+        api = load_api()
+        _THREAD_LOCAL.api = api
+    return api
 
 
 def normalize_username(raw: Any) -> str:
@@ -732,7 +751,8 @@ def caption_language_is_english(caption: str) -> bool:
     if len(re.findall(r"[A-Za-z]", text)) < LANG_DETECT_MIN_LETTERS:
         return False
     try:
-        guesses = detect_langs(text)
+        with _LANGDETECT_LOCK:
+            guesses = detect_langs(text)
     except LangDetectException:
         return False
     if not guesses:
@@ -943,16 +963,59 @@ def append_row(path: Path, fieldnames: list[str], row: dict[str, Any], first: bo
         writer.writerow(row)
 
 
+def load_existing_candidates() -> dict[str, set[str]]:
+    candidates: dict[str, set[str]] = {}
+    if not CANDIDATES_PATH.exists():
+        return candidates
+    with CANDIDATES_PATH.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            username = normalize_username(row.get("username"))
+            if not username:
+                continue
+            sources = {
+                normalize_username(part)
+                for part in str(row.get("discovered_from_seed") or "").split("|")
+                if normalize_username(part)
+            }
+            candidates[username] = sources
+    return candidates
+
+
+def selected_usernames_for_discovery() -> list[str]:
+    path = WEEKS_DIR / f"{iso_week_id()}.json"
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    names: list[str] = []
+    seen: set[str] = set()
+    for account in payload.get("accounts") or []:
+        name = normalize_username((account or {}).get("username"))
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+    return names
+
+
 def run_discovery(
     api: InstagramAPI,
     seeds: list[str],
     delay: float,
     following_limit: int = FOLLOWING_LIMIT,
+    extra_sources: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    candidates: dict[str, set[str]] = {}
-    seed_set = set(seeds)
-    total = len(seeds)
-    for index, seed in enumerate(seeds, start=1):
+    candidates = load_existing_candidates()
+    before = len(candidates)
+    seed_set = {normalize_username(name) for name in seeds}
+    sources = list(seeds)
+    for name in extra_sources or []:
+        key = normalize_username(name)
+        if key and key not in seed_set and key not in {normalize_username(s) for s in sources}:
+            sources.append(key)
+    total = len(sources)
+    for index, seed in enumerate(sources, start=1):
         print(f"Discovery {index}/{total}: {seed}")
         try:
             profile = fetch_profile(api, seed)
@@ -968,8 +1031,9 @@ def run_discovery(
             for username in names:
                 if username in seed_set:
                     continue
+                if username not in candidates:
+                    added += 1
                 candidates.setdefault(username, set()).add(seed)
-                added += 1
             print(f"  {len(names)} following, {added} new candidates")
         except NotFoundException:
             print("  skipped (not found)")
@@ -981,12 +1045,12 @@ def run_discovery(
             time.sleep(delay)
 
     rows = [
-        {"username": username, "discovered_from_seed": "|".join(sorted(sources))}
-        for username, sources in sorted(candidates.items())
+        {"username": username, "discovered_from_seed": "|".join(sorted(origins))}
+        for username, origins in sorted(candidates.items())
     ]
     if rows:
         write_csv(CANDIDATES_PATH, ["username", "discovered_from_seed"], rows)
-        print(f"\nWrote {len(rows)} candidates to {CANDIDATES_PATH}")
+        print(f"\nWrote {len(rows)} candidates to {CANDIDATES_PATH} ({len(rows) - before} new)")
     else:
         print(f"\nNo candidates discovered; {CANDIDATES_PATH.name} not written")
     return rows
@@ -1252,6 +1316,28 @@ def evaluate_candidate(
     ), js_row
 
 
+def evaluate_candidate_safe(
+    username: str,
+    delay: float,
+    vetted: bool,
+    used_shortcodes: set[str],
+) -> tuple[dict[str, Any], dict[str, str] | None]:
+    try:
+        return evaluate_candidate(
+            thread_api(),
+            username,
+            delay,
+            vetted=vetted,
+            used_shortcodes=used_shortcodes,
+        )
+    except NotFoundException:
+        return blank_result(username, exclusion_reason="not found"), None
+    except BadResponseException as exc:
+        return blank_result(username, exclusion_reason=f"bad response: {exc}"), None
+    except Exception as exc:  # noqa: BLE001
+        return blank_result(username, exclusion_reason=f"error: {exc}"), None
+
+
 def persist_eligibility(
     by_name: dict[str, dict[str, Any]],
     original_order: list[str],
@@ -1280,6 +1366,7 @@ def run_eligibility(
     target: int,
     vetted_usernames: set[str] | None = None,
     refresh_seeds: bool = True,
+    workers: int = 1,
 ) -> list[dict[str, Any]]:
     vetted_usernames = {name.lower() for name in (vetted_usernames or set())}
     manual = load_manual_excludes(MANUAL_EXCLUDES_PATH)
@@ -1321,48 +1408,29 @@ def run_eligibility(
             f"Released {released} prior-week reel(s) from the live CSV "
             f"(kept under {WEEKS_DIR})"
         )
-    print(f"Resuming with {passed} already selected this week (target {target})")
+    workers = max(1, int(workers))
+    print(
+        f"Resuming with {passed} already selected this week "
+        f"(target {target}, workers {workers})"
+    )
 
     total = len(usernames)
-    for index, username in enumerate(usernames, start=1):
+    todo = iter(enumerate(usernames, start=1))
+    pending: dict[Any, tuple[int, str, bool]] = {}
+    in_flight: set[str] = set()
+    reached = False
+
+    def apply_result(index: int, username: str, is_vetted: bool, row: dict[str, Any], js_row: dict[str, str] | None) -> None:
+        nonlocal passed
         key = normalize_username(username)
-        is_vetted = key in vetted_usernames
-        if key in manual:
-            print(f"Eligibility {index}/{total}: {username}  (manual skip {manual[key]})")
-            continue
-        already = key in by_name
-        if already and not (refresh_seeds and is_vetted):
-            continue
-        if key in used_usernames:
-            continue
-        if passed >= target and not (refresh_seeds and is_vetted):
-            print(f"\nReached {target} accounts with a selected reel; stopping.")
-            break
-
-        print(f"Eligibility {index}/{total}: {username}  (selected {passed}/{target})")
-        old_selected = counts_for_current_week(
-            by_name.get(key), used_shortcodes, used_usernames
-        )
-        try:
-            row, js_row = evaluate_candidate(
-                api,
-                username,
-                delay,
-                vetted=is_vetted,
-                used_shortcodes=used_shortcodes,
-            )
-        except NotFoundException:
-            row, js_row = blank_result(username, exclusion_reason="not found"), None
-        except BadResponseException as exc:
-            row, js_row = blank_result(username, exclusion_reason=f"bad response: {exc}"), None
-        except Exception as exc:  # noqa: BLE001
-            row, js_row = blank_result(username, exclusion_reason=f"error: {exc}"), None
-
         if key in manual:
             row["exclusion_reason"] = manual[key]
         if js_row and normalize_username(js_row.get("username")) not in js_seen:
             js_rows.append(js_row)
             js_seen.add(normalize_username(js_row.get("username")))
+        old_selected = counts_for_current_week(
+            by_name.get(key), used_shortcodes, used_usernames
+        )
         by_name[key] = row
         if key not in original_order:
             original_order.append(key)
@@ -1376,13 +1444,64 @@ def run_eligibility(
         persist_eligibility(by_name, original_order)
         if new_selected:
             print(
-                f"  selected {row['selected_shortcode']} via {row['selection_note']} "
-                f"({row['reels_checked_before_pass']} checked, {row['niche_confirmed']})"
+                f"  {username}: selected {row['selected_shortcode']} via {row['selection_note']} "
+                f"({row['reels_checked_before_pass']} checked, {row['niche_confirmed']}) "
+                f"[{passed}/{target}]"
             )
         else:
-            print(f"  skipped ({row.get('exclusion_reason') or row.get('selection_note') or 'no reel'})")
-        if index < total and (passed < target or (refresh_seeds and is_vetted)):
-            time.sleep(delay)
+            print(
+                f"  {username}: skipped "
+                f"({row.get('exclusion_reason') or row.get('selection_note') or 'no reel'})"
+            )
+
+    def submit_next(executor: ThreadPoolExecutor) -> bool:
+        nonlocal reached
+        while True:
+            try:
+                index, username = next(todo)
+            except StopIteration:
+                return False
+            key = normalize_username(username)
+            is_vetted = key in vetted_usernames
+            if key in manual:
+                print(f"Eligibility {index}/{total}: {username}  (manual skip {manual[key]})")
+                continue
+            already = key in by_name or key in in_flight
+            if already and not (refresh_seeds and is_vetted):
+                continue
+            if key in used_usernames:
+                continue
+            if passed >= target and not (refresh_seeds and is_vetted):
+                reached = True
+                return False
+            print(f"Eligibility {index}/{total}: {username}  (selected {passed}/{target})")
+            in_flight.add(key)
+            pending[executor.submit(
+                evaluate_candidate_safe,
+                username,
+                delay,
+                is_vetted,
+                used_shortcodes,
+            )] = (index, username, is_vetted)
+            return True
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for _ in range(workers):
+            if not submit_next(executor):
+                break
+        while pending:
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                index, username, is_vetted = pending.pop(future)
+                in_flight.discard(normalize_username(username))
+                row, js_row = future.result()
+                apply_result(index, username, is_vetted, row, js_row)
+            while len(pending) < workers:
+                if not submit_next(executor):
+                    break
+
+    if reached or passed >= target:
+        print(f"\nReached {target} accounts with a selected reel; stopping.")
 
     write_csv(NEEDS_JS_PATH, ["username", "external_url", "reason"], js_rows)
     ordered = persist_eligibility(by_name, original_order)
@@ -1714,7 +1833,13 @@ def main() -> None:
     print(f"Loaded {len(seeds)} seed(s) from {SEEDS_PATH}")
 
     if not args.eligibility_only:
-        run_discovery(api, seeds, args.delay, following_limit=args.following_limit)
+        run_discovery(
+            api,
+            seeds,
+            args.delay,
+            following_limit=args.following_limit,
+            extra_sources=selected_usernames_for_discovery(),
+        )
     if args.discovery_only:
         return
 
@@ -1739,6 +1864,7 @@ def main() -> None:
         args.target,
         seed_set,
         refresh_seeds=not args.no_refresh_seeds,
+        workers=args.workers,
     )
     week_rows = current_week_rows(gui_rows)
     archive_week(week_rows)
