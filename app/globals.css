@@ -139,6 +139,7 @@ h1 {
 .accepted-links-head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 0.82rem;
@@ -155,6 +156,49 @@ h1 {
   background: var(--card);
   color: var(--ink);
   resize: vertical;
+}
+
+.accepted-day {
+  margin: 0 0 28px;
+}
+
+.accepted-day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 24px 12px;
+}
+
+.accepted-day-head h2 {
+  margin: 0;
+  font: 600 1.05rem/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.accepted-day-head p {
+  margin: 4px 0 0;
+  font: 0.8rem/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--muted);
+}
+
+.copy-btn {
+  font: 600 0.82rem/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 7px 10px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.copy-btn:hover:not(:disabled),
+.copy-btn.copied {
+  border-color: var(--ink);
+}
+
+.copy-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .week-tab-accepted,
@@ -433,8 +477,13 @@ a.btn {
 
 .review-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 6px;
+}
+
+.review-actions .copy-btn {
+  flex: 1;
 }
 
 .review-btn {
@@ -500,54 +549,3 @@ a.btn {
   resize: vertical;
 }
 
-.creator-box {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-.creator-used {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--ink);
-}
-
-.creator-used input {
-  min-width: 0;
-  width: auto;
-  accent-color: #2e7d32;
-}
-
-.creator-row {
-  display: flex;
-  gap: 6px;
-}
-
-.creator-row input {
-  flex: 1;
-  min-width: 0;
-}
-
-.creator-add,
-.creator-remove {
-  font: 600 0.75rem/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding: 7px 8px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.creator-add {
-  width: fit-content;
-}
-
-.creator-add:hover,
-.creator-remove:hover {
-  color: var(--ink);
-  border-color: var(--ink);
-}

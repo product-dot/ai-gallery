@@ -15,6 +15,36 @@ import {
   type ReviewPatch,
 } from "@/lib/reviewTypes";
 
+export function CopyButton({
+  text,
+  label = "Copy link",
+}: {
+  text: string;
+  label?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <button
+      type="button"
+      className={copied ? "copy-btn copied" : "copy-btn"}
+      disabled={!text}
+      onClick={async () => {
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          return;
+        }
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? "Copied" : label}
+    </button>
+  );
+}
+
 function ReelThumb({ account }: { account: EligibleAccount }) {
   const shortcode = account.selected_shortcode;
   const [failed, setFailed] = useState(!shortcode);
@@ -77,100 +107,6 @@ function ReasonBox({
   );
 }
 
-function CreatorBox({
-  username,
-  usedForCreator,
-  creatorNames,
-  onSave,
-}: {
-  username: string;
-  usedForCreator: boolean;
-  creatorNames: string[];
-  onSave: (usedForCreator: boolean, creatorNames: string[]) => void;
-}) {
-  const [used, setUsed] = useState(usedForCreator);
-  const [names, setNames] = useState(
-    creatorNames.length > 0 ? creatorNames : [""]
-  );
-  const focused = useRef(false);
-
-  useEffect(() => {
-    if (!focused.current) {
-      setUsed(usedForCreator);
-      setNames(creatorNames.length > 0 ? creatorNames : [""]);
-    }
-  }, [usedForCreator, creatorNames]);
-
-  useEffect(() => {
-    const sameUsed = used === usedForCreator;
-    const sameNames =
-      names.map((name) => name.trim()).filter(Boolean).join("\n") ===
-      creatorNames.map((name) => name.trim()).filter(Boolean).join("\n");
-    if (sameUsed && sameNames) return;
-    const timer = window.setTimeout(() => onSave(used, names), 450);
-    return () => window.clearTimeout(timer);
-  }, [used, names, usedForCreator, creatorNames, onSave]);
-
-  return (
-    <div className="creator-box">
-      <label className="creator-used">
-        <input
-          type="checkbox"
-          checked={used}
-          onChange={(event) => {
-            const next = event.target.checked;
-            setUsed(next);
-            onSave(next, names);
-          }}
-        />
-        Used for creator
-      </label>
-      {names.map((name, index) => (
-        <div className="creator-row" key={`creator-${index}`}>
-          <input
-            type="text"
-            value={name}
-            placeholder="Creator name"
-            aria-label={`Creator name ${index + 1} for @${username}`}
-            onFocus={() => {
-              focused.current = true;
-            }}
-            onBlur={() => {
-              focused.current = false;
-              onSave(used, names);
-            }}
-            onChange={(event) => {
-              const next = [...names];
-              next[index] = event.target.value;
-              setNames(next);
-            }}
-          />
-          {names.length > 1 ? (
-            <button
-              type="button"
-              className="creator-remove"
-              onClick={() => {
-                const next = names.filter((_, current) => current !== index);
-                setNames(next);
-                onSave(used, next);
-              }}
-            >
-              Remove
-            </button>
-          ) : null}
-        </div>
-      ))}
-      <button
-        type="button"
-        className="creator-add"
-        onClick={() => setNames([...names, ""])}
-      >
-        Add another creator
-      </button>
-    </div>
-  );
-}
-
 export default function VisualLibrary({
   accounts,
   reviews,
@@ -213,7 +149,7 @@ export default function VisualLibrary({
                 ? "No rejected reels this week."
                 : mode === "accepted"
                   ? "No accepted reels this week."
-                  : "No accounts with a selected reel yet."
+                  : "No unseen reels this week."
               : "No accounts match that username."}
           </p>
         ) : (
@@ -302,6 +238,7 @@ export default function VisualLibrary({
                     >
                       Reject
                     </button>
+                    <CopyButton text={permalink} label="Copy link" />
                   </div>
                   {mode === "rejected" ? (
                     <ReasonBox
@@ -309,20 +246,6 @@ export default function VisualLibrary({
                       value={review?.reason || ""}
                       onSave={(reason) =>
                         onReview(account, { status: "rejected", reason })
-                      }
-                    />
-                  ) : null}
-                  {mode === "accepted" ? (
-                    <CreatorBox
-                      username={account.username}
-                      usedForCreator={Boolean(review?.usedForCreator)}
-                      creatorNames={review?.creatorNames || []}
-                      onSave={(usedForCreator, creatorNames) =>
-                        onReview(account, {
-                          status: "accepted",
-                          usedForCreator,
-                          creatorNames,
-                        })
                       }
                     />
                   ) : null}

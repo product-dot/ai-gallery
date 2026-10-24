@@ -73,6 +73,43 @@ ONE_PERSON_RE = re.compile(r"\b(?:1|one)\s+person\b", re.IGNORECASE)
 MULTI_PEOPLE_RE = re.compile(r"\b(?:[2-9]|[1-9]\d+)\s+people\b", re.IGNORECASE)
 PEOPLE_RE = re.compile(r"\bpeople\b", re.IGNORECASE)
 TEXT_SAYS_RE = re.compile(r"text that says", re.IGNORECASE)
+ACCESSIBILITY_GROUP_RE = re.compile(
+    r"\b(?:two|three|four|five|2|3|4|5|\d+)\s+"
+    r"(?:people|persons|women|men|girls|guys|friends)\b|"
+    r"\b(?:a couple|group of|crowd of|friends)\b|"
+    r"\b(?:man and (?:a )?woman|woman and (?:a )?man)\b",
+    re.IGNORECASE,
+)
+GROUP_CAPTION_RE = re.compile(
+    r"\b(?:me and my|me & my|besties?|friend group|the girls|"
+    r"with my (?:bestie|boyfriend|girlfriend|husband|wife|man|girl)|"
+    r"we (?:went|are|were|got)|our (?:date|trip|night))\b",
+    re.IGNORECASE,
+)
+MENTION_RE = re.compile(r"@([A-Za-z0-9._]+)")
+COMMERCIAL_CAPTION_RE = re.compile(
+    r"(?:shop now|buy now|order now|use code|promo code|#ad\b|#gifted|"
+    r"\bsponsored\b|limited edition|add to cart|on sale|"
+    r"new collection|just dropped|pre-?order|worldwide shipping|"
+    r"available (?:now|on|at)\b)",
+    re.IGNORECASE,
+)
+NON_CREATOR_BIO_RE = re.compile(
+    r"(?:501\s*\(\s*c\s*\)\s*\(\s*3\s*\)|non-?profit wildlife|"
+    r"fair and fearless reporting|send news tips|breaking news|"
+    r"podcast hosted by|new episodes every|"
+    r"private management for|vip host\s*/\s*concierge|"
+    r"board certified(?: plastic)? surgeon|cirujano pl[aá]stico|"
+    r"worldwide shipping|text [“\"']?\w+[”\"']? to \+?\d|"
+    r"account no longer active|pulse of pop culture|"
+    r"building a successful .{0,40}business)",
+    re.IGNORECASE,
+)
+MEDIA_BIO_RE = re.compile(
+    r"\b(?:newsroom|journalist|reporting|news tips|celebrity news|"
+    r"pop culture and politics)\b",
+    re.IGNORECASE,
+)
 
 # Soft US-signal heuristic for display order only. Low confidence, never an
 # eligibility/exclusion rule. Bio/location match first; English caption second.
@@ -897,7 +934,7 @@ def log_collab_fields_once(item: dict[str, Any]) -> None:
 def accessibility_fails(text: str) -> str | None:
     if TEXT_SAYS_RE.search(text):
         return "text_that_says"
-    if MULTI_PEOPLE_RE.search(text):
+    if MULTI_PEOPLE_RE.search(text) or ACCESSIBILITY_GROUP_RE.search(text):
         return "multiple_people"
     if PEOPLE_RE.search(text) and not ONE_PERSON_RE.search(text):
         return "people_without_one"
@@ -915,6 +952,7 @@ def select_reel(
     extra_map: dict[str, str],
     delay: float,
     used_shortcodes: set[str] | None = None,
+    username: str = "",
 ) -> tuple[dict[str, Any] | None, int, str]:
     used_shortcodes = used_shortcodes or set()
     ranked = sorted(reels, key=view_count, reverse=True)
@@ -931,12 +969,24 @@ def select_reel(
         if is_collab_reel(item):
             skip_history.append("skipped_collab")
             continue
+        caption = caption_text(item)
+        if is_commercial_reel(item, caption):
+            skip_history.append("skipped_commercial")
+            continue
+        if reel_has_multiple_people(item, caption, "", username):
+            skip_history.append("skipped_multiple_people")
+            continue
         acc = caption_for_reel(api, item, extra_map, delay)
-        if not acc:
-            return item, checked, join_selection_note(skip_history, "unverified_no_caption")
-        reason = accessibility_fails(acc)
-        if reason is None:
+        if acc:
+            reason = accessibility_fails(acc)
+            if reason:
+                skip_history.append(reason)
+                continue
+            if reel_has_multiple_people(item, caption, acc, username):
+                skip_history.append("skipped_multiple_people")
+                continue
             return item, checked, join_selection_note(skip_history, "passed_caption_check")
+        return item, checked, join_selection_note(skip_history, "unverified_no_caption")
     return None, checked, join_selection_note(skip_history, "reel_selection_failed")
 
 
@@ -984,6 +1034,9 @@ def load_existing_candidates() -> dict[str, set[str]]:
 def selected_usernames_for_discovery() -> list[str]:
     path = WEEKS_DIR / f"{iso_week_id()}.json"
     if not path.exists():
+        prior = sorted(WEEKS_DIR.glob("*.json"))
+        path = prior[-1] if prior else None
+    if path is None or not path.exists():
         return []
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -1083,6 +1136,78 @@ def looks_like_couple(*texts: str) -> bool:
     return bool(COUPLE_RE.search(blob))
 
 
+def looks_like_non_creator(username: str, bio: str) -> str | None:
+    """News, brands, clinics, and podcasts that reviewers rejected last weeks."""
+    if NON_CREATOR_BIO_RE.search(bio or ""):
+        return "excluded_non_creator"
+    if MEDIA_BIO_RE.search(bio or ""):
+        return "excluded_media_account"
+    if COMMERCIAL_CAPTION_RE.search(bio or ""):
+        return "excluded_product_brand"
+    return None
+
+
+def media_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
+    nodes = [item]
+    nested = item.get("media")
+    if isinstance(nested, dict):
+        nodes.append(nested)
+    return nodes
+
+
+def is_commercial_reel(item: dict[str, Any], caption: str = "") -> bool:
+    if COMMERCIAL_CAPTION_RE.search(caption or ""):
+        return True
+    for node in media_nodes(item):
+        if node.get("is_paid_partnership") is True:
+            return True
+        for key in ("featured_products", "product_suggestions", "sponsor_tags"):
+            if nonempty_list(node.get(key)):
+                return True
+    return False
+
+
+def tagged_user_count(item: dict[str, Any]) -> int:
+    for node in media_nodes(item):
+        tags = node.get("usertags")
+        if isinstance(tags, dict):
+            inner = tags.get("in")
+            if isinstance(inner, list):
+                return len(inner)
+        if isinstance(tags, list):
+            return len(tags)
+        if node.get("has_tagged_users") is True:
+            return 1
+    return 0
+
+
+def caption_mention_count(caption: str, username: str) -> int:
+    mentions = {normalize_username(name) for name in MENTION_RE.findall(caption or "")}
+    mentions.discard(normalize_username(username))
+    mentions -= {"instagram", "reels", "explore", "highlight"}
+    mentions.discard("")
+    return len(mentions)
+
+
+def reel_has_multiple_people(
+    item: dict[str, Any],
+    caption: str,
+    accessibility: str,
+    username: str,
+) -> bool:
+    if looks_like_couple(caption, accessibility):
+        return True
+    if GROUP_CAPTION_RE.search(caption or ""):
+        return True
+    if tagged_user_count(item) >= 2:
+        return True
+    if caption_mention_count(caption, username) >= 2:
+        return True
+    if accessibility and ACCESSIBILITY_GROUP_RE.search(accessibility):
+        return True
+    return False
+
+
 def is_selected_row(row: dict[str, Any] | None) -> bool:
     """True when the account has a selected reel and was not excluded.
 
@@ -1147,13 +1272,20 @@ def counts_for_current_week(
     row: dict[str, Any] | None,
     used_shortcodes: set[str],
     used_usernames: set[str],
+    allow_usernames: set[str] | None = None,
 ) -> bool:
-    """True when a selected reel is new this week, not a prior-week account."""
+    """True when a selected reel is new this week, not a prior-week account.
+
+    Seed accounts in allow_usernames may return with a new shortcode.
+    """
     if not is_selected_row(row):
         return False
     name = normalize_username(row.get("username"))
     code = str((row or {}).get("selected_shortcode") or "").strip()
-    if name in used_usernames or (code and code in used_shortcodes):
+    allowed = {normalize_username(item) for item in (allow_usernames or set())}
+    if code and code in used_shortcodes:
+        return False
+    if name in used_usernames and name not in allowed:
         return False
     return True
 
@@ -1219,6 +1351,17 @@ def evaluate_candidate(
             exclusion_reason="excluded_couple_account",
         ), None
 
+    if not vetted:
+        non_creator = looks_like_non_creator(username, bio)
+        if non_creator:
+            return blank_result(
+                username,
+                followers=followers,
+                bio=bio,
+                external_url=external_url,
+                exclusion_reason=non_creator,
+            ), None
+
     time.sleep(PAGE_DELAY_SECONDS)
     part_a = bio_keyword_match(bio)
     part_b = "no_match"
@@ -1262,7 +1405,7 @@ def evaluate_candidate(
 
     extra_map = collect_accessibility_by_code(profile)
     selected, checked, note = select_reel(
-        api, reels, extra_map, delay, used_shortcodes
+        api, reels, extra_map, delay, used_shortcodes, username=username
     )
     base = {
         "username": username,
@@ -1396,11 +1539,24 @@ def run_eligibility(
     current_id = iso_week_id()
     used_shortcodes, used_usernames = previous_week_usage(current_id)
     released = release_prior_week_rows(by_name, used_shortcodes)
+    refreshed_seeds = 0
+    if refresh_seeds:
+        for name, row in by_name.items():
+            if name not in vetted_usernames or name not in used_usernames:
+                continue
+            if not is_selected_row(row):
+                continue
+            for field in SELECTION_CLEAR_FIELDS:
+                row[field] = ""
+            row["selection_note"] = "refresh_seed"
+            refreshed_seeds += 1
 
     passed = sum(
         1
         for row in by_name.values()
-        if counts_for_current_week(row, used_shortcodes, used_usernames)
+        if counts_for_current_week(
+            row, used_shortcodes, used_usernames, vetted_usernames
+        )
     )
     persist_eligibility(by_name, original_order)
     if released:
@@ -1408,6 +1564,8 @@ def run_eligibility(
             f"Released {released} prior-week reel(s) from the live CSV "
             f"(kept under {WEEKS_DIR})"
         )
+    if refreshed_seeds:
+        print(f"Refreshing {refreshed_seeds} seed account(s) for a new reel this week")
     workers = max(1, int(workers))
     print(
         f"Resuming with {passed} already selected this week "
@@ -1429,13 +1587,13 @@ def run_eligibility(
             js_rows.append(js_row)
             js_seen.add(normalize_username(js_row.get("username")))
         old_selected = counts_for_current_week(
-            by_name.get(key), used_shortcodes, used_usernames
+            by_name.get(key), used_shortcodes, used_usernames, vetted_usernames
         )
         by_name[key] = row
         if key not in original_order:
             original_order.append(key)
         new_selected = counts_for_current_week(
-            row, used_shortcodes, used_usernames
+            row, used_shortcodes, used_usernames, vetted_usernames
         )
         if old_selected and not new_selected:
             passed -= 1
@@ -1466,10 +1624,17 @@ def run_eligibility(
             if key in manual:
                 print(f"Eligibility {index}/{total}: {username}  (manual skip {manual[key]})")
                 continue
-            already = key in by_name or key in in_flight
+            if key in in_flight:
+                continue
+            already = key in by_name
+            already_this_week = counts_for_current_week(
+                by_name.get(key), used_shortcodes, used_usernames, vetted_usernames
+            )
+            if already_this_week:
+                continue
             if already and not (refresh_seeds and is_vetted):
                 continue
-            if key in used_usernames:
+            if key in used_usernames and not (refresh_seeds and is_vetted):
                 continue
             if passed >= target and not (refresh_seeds and is_vetted):
                 reached = True
@@ -1759,10 +1924,11 @@ def current_week_rows(
 ) -> list[dict[str, Any]]:
     """Selected reels for this ISO week only — never reuse last week's accounts."""
     used_shortcodes, used_usernames = previous_week_usage(iso_week_id(when))
+    allow = {normalize_username(name) for name in load_seeds(SEEDS_PATH)}
     return [
         row
         for row in rows
-        if counts_for_current_week(row, used_shortcodes, used_usernames)
+        if counts_for_current_week(row, used_shortcodes, used_usernames, allow)
     ]
 
 
