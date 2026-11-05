@@ -121,8 +121,6 @@ function isNewThisWeek(
 ): boolean {
   const code = String(account.selected_shortcode || "").trim();
   if (!code || prior.shortcodes.has(code)) return false;
-  const user = usernameOf(account);
-  if (user && prior.usernames.has(user)) return false;
   return true;
 }
 

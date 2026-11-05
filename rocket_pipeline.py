@@ -1268,15 +1268,33 @@ def previous_week_usage(current_id: str) -> tuple[set[str], set[str]]:
     return shortcodes, usernames
 
 
+def prior_week_usernames_ordered(current_id: str | None = None) -> list[str]:
+    """Newest archived week first, so reused accounts come from recent batches."""
+    current_id = current_id or iso_week_id()
+    names: list[str] = []
+    seen: set[str] = set()
+    for week in sorted(load_week_archives(), key=lambda row: str(row.get("id") or ""), reverse=True):
+        if week.get("id") == current_id:
+            continue
+        for account in week.get("accounts") or []:
+            if not isinstance(account, dict):
+                continue
+            name = normalize_username(account.get("username"))
+            if name and name not in seen:
+                seen.add(name)
+                names.append(name)
+    return names
+
+
 def counts_for_current_week(
     row: dict[str, Any] | None,
     used_shortcodes: set[str],
     used_usernames: set[str],
     allow_usernames: set[str] | None = None,
 ) -> bool:
-    """True when a selected reel is new this week, not a prior-week account.
+    """True when a selected reel is new this week.
 
-    Seed accounts in allow_usernames may return with a new shortcode.
+    allow_usernames (seeds and prior-week accounts) may return with a new shortcode.
     """
     if not is_selected_row(row):
         return False
@@ -1510,8 +1528,12 @@ def run_eligibility(
     vetted_usernames: set[str] | None = None,
     refresh_seeds: bool = True,
     workers: int = 1,
+    refresh_usernames: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     vetted_usernames = {name.lower() for name in (vetted_usernames or set())}
+    refresh_usernames = {
+        normalize_username(name) for name in (refresh_usernames or set())
+    } | vetted_usernames
     manual = load_manual_excludes(MANUAL_EXCLUDES_PATH)
     existing = load_all_eligible_rows(ELIGIBLE_PATH)
     by_name: dict[str, dict[str, Any]] = {}
@@ -1539,23 +1561,26 @@ def run_eligibility(
     current_id = iso_week_id()
     used_shortcodes, used_usernames = previous_week_usage(current_id)
     released = release_prior_week_rows(by_name, used_shortcodes)
-    refreshed_seeds = 0
-    if refresh_seeds:
-        for name, row in by_name.items():
-            if name not in vetted_usernames or name not in used_usernames:
-                continue
-            if not is_selected_row(row):
-                continue
-            for field in SELECTION_CLEAR_FIELDS:
-                row[field] = ""
-            row["selection_note"] = "refresh_seed"
-            refreshed_seeds += 1
+    refreshed_prior = 0
+    for name, row in by_name.items():
+        if name not in refresh_usernames:
+            continue
+        if counts_for_current_week(
+            row, used_shortcodes, used_usernames, refresh_usernames
+        ):
+            continue
+        if not is_selected_row(row):
+            continue
+        for field in SELECTION_CLEAR_FIELDS:
+            row[field] = ""
+        row["selection_note"] = "refresh_prior_account"
+        refreshed_prior += 1
 
     passed = sum(
         1
         for row in by_name.values()
         if counts_for_current_week(
-            row, used_shortcodes, used_usernames, vetted_usernames
+            row, used_shortcodes, used_usernames, refresh_usernames
         )
     )
     persist_eligibility(by_name, original_order)
@@ -1564,8 +1589,10 @@ def run_eligibility(
             f"Released {released} prior-week reel(s) from the live CSV "
             f"(kept under {WEEKS_DIR})"
         )
-    if refreshed_seeds:
-        print(f"Refreshing {refreshed_seeds} seed account(s) for a new reel this week")
+    if refreshed_prior:
+        print(
+            f"Reusing {refreshed_prior} prior-week account(s) for a new reel this week"
+        )
     workers = max(1, int(workers))
     print(
         f"Resuming with {passed} already selected this week "
@@ -1587,13 +1614,13 @@ def run_eligibility(
             js_rows.append(js_row)
             js_seen.add(normalize_username(js_row.get("username")))
         old_selected = counts_for_current_week(
-            by_name.get(key), used_shortcodes, used_usernames, vetted_usernames
+            by_name.get(key), used_shortcodes, used_usernames, refresh_usernames
         )
         by_name[key] = row
         if key not in original_order:
             original_order.append(key)
         new_selected = counts_for_current_week(
-            row, used_shortcodes, used_usernames, vetted_usernames
+            row, used_shortcodes, used_usernames, refresh_usernames
         )
         if old_selected and not new_selected:
             passed -= 1
@@ -1621,6 +1648,7 @@ def run_eligibility(
                 return False
             key = normalize_username(username)
             is_vetted = key in vetted_usernames
+            is_refresh = key in refresh_usernames
             if key in manual:
                 print(f"Eligibility {index}/{total}: {username}  (manual skip {manual[key]})")
                 continue
@@ -1628,13 +1656,13 @@ def run_eligibility(
                 continue
             already = key in by_name
             already_this_week = counts_for_current_week(
-                by_name.get(key), used_shortcodes, used_usernames, vetted_usernames
+                by_name.get(key), used_shortcodes, used_usernames, refresh_usernames
             )
             if already_this_week:
                 continue
-            if already and not (refresh_seeds and is_vetted):
+            if already and not is_refresh:
                 continue
-            if key in used_usernames and not (refresh_seeds and is_vetted):
+            if key in used_usernames and not is_refresh:
                 continue
             if passed >= target and not (refresh_seeds and is_vetted):
                 reached = True
@@ -1925,6 +1953,7 @@ def current_week_rows(
     """Selected reels for this ISO week only — never reuse last week's accounts."""
     used_shortcodes, used_usernames = previous_week_usage(iso_week_id(when))
     allow = {normalize_username(name) for name in load_seeds(SEEDS_PATH)}
+    allow |= used_usernames
     return [
         row
         for row in rows
@@ -2018,11 +2047,21 @@ def main() -> None:
         sys.exit(f"Missing {CANDIDATES_PATH}. Run discovery first.")
 
     seed_set = {name.lower() for name in seeds}
+    prior_accounts = prior_week_usernames_ordered()
+    prior_set = set(prior_accounts)
     queue = list(seeds)
-    for name in discovered:
-        if name.lower() not in seed_set:
+    for name in prior_accounts:
+        if name not in seed_set:
             queue.append(name)
-    print(f"\nEligibility on {len(queue)} account(s) ({len(seeds)} seeds first, target {args.target})")
+    for name in discovered:
+        key = name.lower()
+        if key not in seed_set and key not in prior_set:
+            queue.append(name)
+    print(
+        f"\nEligibility on {len(queue)} account(s) "
+        f"({len(seeds)} seeds, {len(prior_accounts)} prior-week accounts first, "
+        f"target {args.target})"
+    )
     gui_rows = run_eligibility(
         api,
         queue,
@@ -2031,6 +2070,7 @@ def main() -> None:
         seed_set,
         refresh_seeds=not args.no_refresh_seeds,
         workers=args.workers,
+        refresh_usernames=seed_set | prior_set,
     )
     week_rows = current_week_rows(gui_rows)
     archive_week(week_rows)
