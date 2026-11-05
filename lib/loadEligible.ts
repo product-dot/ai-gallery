@@ -121,8 +121,6 @@ function isNewThisWeek(
 ): boolean {
   const code = String(account.selected_shortcode || "").trim();
   if (!code || prior.shortcodes.has(code)) return false;
-  const user = usernameOf(account);
-  if (user && prior.usernames.has(user)) return false;
   return true;
 }
 
@@ -170,7 +168,7 @@ export function loadWeekSnapshots(): WeekSnapshot[] {
   const current = weeks.find((week) => week.id === currentId);
   const byShortcode = new Map<string, EligibleAccount>();
   for (const row of current?.accounts || []) {
-    if (isNewThisWeek(row, prior)) byShortcode.set(row.selected_shortcode, row);
+    if (row.selected_shortcode) byShortcode.set(row.selected_shortcode, row);
   }
   for (const row of live) {
     if (isNewThisWeek(row, prior)) byShortcode.set(row.selected_shortcode, row);

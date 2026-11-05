@@ -19,7 +19,9 @@ import json
 import os
 import re
 import sys
+import threading
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -54,6 +56,9 @@ MIN_FOLLOWERS = 10_000  # non-seeds; 1k-follower pages are not usable
 MIN_REEL_VIEWS = 10_000  # non-seeds; 4k-view reels are not in-range
 DELAY_SECONDS = 1.5
 PAGE_DELAY_SECONDS = 0.75
+DEFAULT_WORKERS = 4
+_LANGDETECT_LOCK = threading.Lock()
+_THREAD_LOCAL = threading.local()
 EMPTY_TEXT_CHARS = 200
 EMPTY_HTML_CHARS = 1500
 
@@ -68,6 +73,43 @@ ONE_PERSON_RE = re.compile(r"\b(?:1|one)\s+person\b", re.IGNORECASE)
 MULTI_PEOPLE_RE = re.compile(r"\b(?:[2-9]|[1-9]\d+)\s+people\b", re.IGNORECASE)
 PEOPLE_RE = re.compile(r"\bpeople\b", re.IGNORECASE)
 TEXT_SAYS_RE = re.compile(r"text that says", re.IGNORECASE)
+ACCESSIBILITY_GROUP_RE = re.compile(
+    r"\b(?:two|three|four|five|2|3|4|5|\d+)\s+"
+    r"(?:people|persons|women|men|girls|guys|friends)\b|"
+    r"\b(?:a couple|group of|crowd of|friends)\b|"
+    r"\b(?:man and (?:a )?woman|woman and (?:a )?man)\b",
+    re.IGNORECASE,
+)
+GROUP_CAPTION_RE = re.compile(
+    r"\b(?:me and my|me & my|besties?|friend group|the girls|"
+    r"with my (?:bestie|boyfriend|girlfriend|husband|wife|man|girl)|"
+    r"we (?:went|are|were|got)|our (?:date|trip|night))\b",
+    re.IGNORECASE,
+)
+MENTION_RE = re.compile(r"@([A-Za-z0-9._]+)")
+COMMERCIAL_CAPTION_RE = re.compile(
+    r"(?:shop now|buy now|order now|use code|promo code|#ad\b|#gifted|"
+    r"\bsponsored\b|limited edition|add to cart|on sale|"
+    r"new collection|just dropped|pre-?order|worldwide shipping|"
+    r"available (?:now|on|at)\b)",
+    re.IGNORECASE,
+)
+NON_CREATOR_BIO_RE = re.compile(
+    r"(?:501\s*\(\s*c\s*\)\s*\(\s*3\s*\)|non-?profit wildlife|"
+    r"fair and fearless reporting|send news tips|breaking news|"
+    r"podcast hosted by|new episodes every|"
+    r"private management for|vip host\s*/\s*concierge|"
+    r"board certified(?: plastic)? surgeon|cirujano pl[aá]stico|"
+    r"worldwide shipping|text [“\"']?\w+[”\"']? to \+?\d|"
+    r"account no longer active|pulse of pop culture|"
+    r"building a successful .{0,40}business)",
+    re.IGNORECASE,
+)
+MEDIA_BIO_RE = re.compile(
+    r"\b(?:newsroom|journalist|reporting|news tips|celebrity news|"
+    r"pop culture and politics)\b",
+    re.IGNORECASE,
+)
 
 # Soft US-signal heuristic for display order only. Low confidence, never an
 # eligibility/exclusion rule. Bio/location match first; English caption second.
@@ -298,6 +340,12 @@ def parse_args() -> argparse.Namespace:
         default=FOLLOWING_LIMIT,
         help="Max following usernames to pull per seed during discovery.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help="Parallel eligibility workers. Use 1 for sequential.",
+    )
     return parser.parse_args()
 
 
@@ -307,6 +355,14 @@ def load_api() -> InstagramAPI:
     if not token:
         sys.exit("Missing ROCKETAPI_TOKEN in .env")
     return InstagramAPI(token=token, max_timeout=60)
+
+
+def thread_api() -> InstagramAPI:
+    api = getattr(_THREAD_LOCAL, "api", None)
+    if api is None:
+        api = load_api()
+        _THREAD_LOCAL.api = api
+    return api
 
 
 def normalize_username(raw: Any) -> str:
@@ -732,7 +788,8 @@ def caption_language_is_english(caption: str) -> bool:
     if len(re.findall(r"[A-Za-z]", text)) < LANG_DETECT_MIN_LETTERS:
         return False
     try:
-        guesses = detect_langs(text)
+        with _LANGDETECT_LOCK:
+            guesses = detect_langs(text)
     except LangDetectException:
         return False
     if not guesses:
@@ -877,7 +934,7 @@ def log_collab_fields_once(item: dict[str, Any]) -> None:
 def accessibility_fails(text: str) -> str | None:
     if TEXT_SAYS_RE.search(text):
         return "text_that_says"
-    if MULTI_PEOPLE_RE.search(text):
+    if MULTI_PEOPLE_RE.search(text) or ACCESSIBILITY_GROUP_RE.search(text):
         return "multiple_people"
     if PEOPLE_RE.search(text) and not ONE_PERSON_RE.search(text):
         return "people_without_one"
@@ -895,6 +952,7 @@ def select_reel(
     extra_map: dict[str, str],
     delay: float,
     used_shortcodes: set[str] | None = None,
+    username: str = "",
 ) -> tuple[dict[str, Any] | None, int, str]:
     used_shortcodes = used_shortcodes or set()
     ranked = sorted(reels, key=view_count, reverse=True)
@@ -911,12 +969,24 @@ def select_reel(
         if is_collab_reel(item):
             skip_history.append("skipped_collab")
             continue
+        caption = caption_text(item)
+        if is_commercial_reel(item, caption):
+            skip_history.append("skipped_commercial")
+            continue
+        if reel_has_multiple_people(item, caption, "", username):
+            skip_history.append("skipped_multiple_people")
+            continue
         acc = caption_for_reel(api, item, extra_map, delay)
-        if not acc:
-            return item, checked, join_selection_note(skip_history, "unverified_no_caption")
-        reason = accessibility_fails(acc)
-        if reason is None:
+        if acc:
+            reason = accessibility_fails(acc)
+            if reason:
+                skip_history.append(reason)
+                continue
+            if reel_has_multiple_people(item, caption, acc, username):
+                skip_history.append("skipped_multiple_people")
+                continue
             return item, checked, join_selection_note(skip_history, "passed_caption_check")
+        return item, checked, join_selection_note(skip_history, "unverified_no_caption")
     return None, checked, join_selection_note(skip_history, "reel_selection_failed")
 
 
@@ -943,16 +1013,62 @@ def append_row(path: Path, fieldnames: list[str], row: dict[str, Any], first: bo
         writer.writerow(row)
 
 
+def load_existing_candidates() -> dict[str, set[str]]:
+    candidates: dict[str, set[str]] = {}
+    if not CANDIDATES_PATH.exists():
+        return candidates
+    with CANDIDATES_PATH.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            username = normalize_username(row.get("username"))
+            if not username:
+                continue
+            sources = {
+                normalize_username(part)
+                for part in str(row.get("discovered_from_seed") or "").split("|")
+                if normalize_username(part)
+            }
+            candidates[username] = sources
+    return candidates
+
+
+def selected_usernames_for_discovery() -> list[str]:
+    path = WEEKS_DIR / f"{iso_week_id()}.json"
+    if not path.exists():
+        prior = sorted(WEEKS_DIR.glob("*.json"))
+        path = prior[-1] if prior else None
+    if path is None or not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+    names: list[str] = []
+    seen: set[str] = set()
+    for account in payload.get("accounts") or []:
+        name = normalize_username((account or {}).get("username"))
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+    return names
+
+
 def run_discovery(
     api: InstagramAPI,
     seeds: list[str],
     delay: float,
     following_limit: int = FOLLOWING_LIMIT,
+    extra_sources: list[str] | None = None,
 ) -> list[dict[str, str]]:
-    candidates: dict[str, set[str]] = {}
-    seed_set = set(seeds)
-    total = len(seeds)
-    for index, seed in enumerate(seeds, start=1):
+    candidates = load_existing_candidates()
+    before = len(candidates)
+    seed_set = {normalize_username(name) for name in seeds}
+    sources = list(seeds)
+    for name in extra_sources or []:
+        key = normalize_username(name)
+        if key and key not in seed_set and key not in {normalize_username(s) for s in sources}:
+            sources.append(key)
+    total = len(sources)
+    for index, seed in enumerate(sources, start=1):
         print(f"Discovery {index}/{total}: {seed}")
         try:
             profile = fetch_profile(api, seed)
@@ -968,8 +1084,9 @@ def run_discovery(
             for username in names:
                 if username in seed_set:
                     continue
+                if username not in candidates:
+                    added += 1
                 candidates.setdefault(username, set()).add(seed)
-                added += 1
             print(f"  {len(names)} following, {added} new candidates")
         except NotFoundException:
             print("  skipped (not found)")
@@ -981,12 +1098,12 @@ def run_discovery(
             time.sleep(delay)
 
     rows = [
-        {"username": username, "discovered_from_seed": "|".join(sorted(sources))}
-        for username, sources in sorted(candidates.items())
+        {"username": username, "discovered_from_seed": "|".join(sorted(origins))}
+        for username, origins in sorted(candidates.items())
     ]
     if rows:
         write_csv(CANDIDATES_PATH, ["username", "discovered_from_seed"], rows)
-        print(f"\nWrote {len(rows)} candidates to {CANDIDATES_PATH}")
+        print(f"\nWrote {len(rows)} candidates to {CANDIDATES_PATH} ({len(rows) - before} new)")
     else:
         print(f"\nNo candidates discovered; {CANDIDATES_PATH.name} not written")
     return rows
@@ -1017,6 +1134,78 @@ def load_manual_excludes(path: Path) -> dict[str, str]:
 def looks_like_couple(*texts: str) -> bool:
     blob = " ".join(str(text or "") for text in texts)
     return bool(COUPLE_RE.search(blob))
+
+
+def looks_like_non_creator(username: str, bio: str) -> str | None:
+    """News, brands, clinics, and podcasts that reviewers rejected last weeks."""
+    if NON_CREATOR_BIO_RE.search(bio or ""):
+        return "excluded_non_creator"
+    if MEDIA_BIO_RE.search(bio or ""):
+        return "excluded_media_account"
+    if COMMERCIAL_CAPTION_RE.search(bio or ""):
+        return "excluded_product_brand"
+    return None
+
+
+def media_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
+    nodes = [item]
+    nested = item.get("media")
+    if isinstance(nested, dict):
+        nodes.append(nested)
+    return nodes
+
+
+def is_commercial_reel(item: dict[str, Any], caption: str = "") -> bool:
+    if COMMERCIAL_CAPTION_RE.search(caption or ""):
+        return True
+    for node in media_nodes(item):
+        if node.get("is_paid_partnership") is True:
+            return True
+        for key in ("featured_products", "product_suggestions", "sponsor_tags"):
+            if nonempty_list(node.get(key)):
+                return True
+    return False
+
+
+def tagged_user_count(item: dict[str, Any]) -> int:
+    for node in media_nodes(item):
+        tags = node.get("usertags")
+        if isinstance(tags, dict):
+            inner = tags.get("in")
+            if isinstance(inner, list):
+                return len(inner)
+        if isinstance(tags, list):
+            return len(tags)
+        if node.get("has_tagged_users") is True:
+            return 1
+    return 0
+
+
+def caption_mention_count(caption: str, username: str) -> int:
+    mentions = {normalize_username(name) for name in MENTION_RE.findall(caption or "")}
+    mentions.discard(normalize_username(username))
+    mentions -= {"instagram", "reels", "explore", "highlight"}
+    mentions.discard("")
+    return len(mentions)
+
+
+def reel_has_multiple_people(
+    item: dict[str, Any],
+    caption: str,
+    accessibility: str,
+    username: str,
+) -> bool:
+    if looks_like_couple(caption, accessibility):
+        return True
+    if GROUP_CAPTION_RE.search(caption or ""):
+        return True
+    if tagged_user_count(item) >= 2:
+        return True
+    if caption_mention_count(caption, username) >= 2:
+        return True
+    if accessibility and ACCESSIBILITY_GROUP_RE.search(accessibility):
+        return True
+    return False
 
 
 def is_selected_row(row: dict[str, Any] | None) -> bool:
@@ -1079,17 +1268,42 @@ def previous_week_usage(current_id: str) -> tuple[set[str], set[str]]:
     return shortcodes, usernames
 
 
+def prior_week_usernames_ordered(current_id: str | None = None) -> list[str]:
+    """Newest archived week first, so reused accounts come from recent batches."""
+    current_id = current_id or iso_week_id()
+    names: list[str] = []
+    seen: set[str] = set()
+    for week in sorted(load_week_archives(), key=lambda row: str(row.get("id") or ""), reverse=True):
+        if week.get("id") == current_id:
+            continue
+        for account in week.get("accounts") or []:
+            if not isinstance(account, dict):
+                continue
+            name = normalize_username(account.get("username"))
+            if name and name not in seen:
+                seen.add(name)
+                names.append(name)
+    return names
+
+
 def counts_for_current_week(
     row: dict[str, Any] | None,
     used_shortcodes: set[str],
     used_usernames: set[str],
+    allow_usernames: set[str] | None = None,
 ) -> bool:
-    """True when a selected reel is new this week, not a prior-week account."""
+    """True when a selected reel is new this week.
+
+    allow_usernames (seeds and prior-week accounts) may return with a new shortcode.
+    """
     if not is_selected_row(row):
         return False
     name = normalize_username(row.get("username"))
     code = str((row or {}).get("selected_shortcode") or "").strip()
-    if name in used_usernames or (code and code in used_shortcodes):
+    allowed = {normalize_username(item) for item in (allow_usernames or set())}
+    if code and code in used_shortcodes:
+        return False
+    if name in used_usernames and name not in allowed:
         return False
     return True
 
@@ -1155,6 +1369,17 @@ def evaluate_candidate(
             exclusion_reason="excluded_couple_account",
         ), None
 
+    if not vetted:
+        non_creator = looks_like_non_creator(username, bio)
+        if non_creator:
+            return blank_result(
+                username,
+                followers=followers,
+                bio=bio,
+                external_url=external_url,
+                exclusion_reason=non_creator,
+            ), None
+
     time.sleep(PAGE_DELAY_SECONDS)
     part_a = bio_keyword_match(bio)
     part_b = "no_match"
@@ -1198,7 +1423,7 @@ def evaluate_candidate(
 
     extra_map = collect_accessibility_by_code(profile)
     selected, checked, note = select_reel(
-        api, reels, extra_map, delay, used_shortcodes
+        api, reels, extra_map, delay, used_shortcodes, username=username
     )
     base = {
         "username": username,
@@ -1252,6 +1477,28 @@ def evaluate_candidate(
     ), js_row
 
 
+def evaluate_candidate_safe(
+    username: str,
+    delay: float,
+    vetted: bool,
+    used_shortcodes: set[str],
+) -> tuple[dict[str, Any], dict[str, str] | None]:
+    try:
+        return evaluate_candidate(
+            thread_api(),
+            username,
+            delay,
+            vetted=vetted,
+            used_shortcodes=used_shortcodes,
+        )
+    except NotFoundException:
+        return blank_result(username, exclusion_reason="not found"), None
+    except BadResponseException as exc:
+        return blank_result(username, exclusion_reason=f"bad response: {exc}"), None
+    except Exception as exc:  # noqa: BLE001
+        return blank_result(username, exclusion_reason=f"error: {exc}"), None
+
+
 def persist_eligibility(
     by_name: dict[str, dict[str, Any]],
     original_order: list[str],
@@ -1280,8 +1527,13 @@ def run_eligibility(
     target: int,
     vetted_usernames: set[str] | None = None,
     refresh_seeds: bool = True,
+    workers: int = 1,
+    refresh_usernames: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     vetted_usernames = {name.lower() for name in (vetted_usernames or set())}
+    refresh_usernames = {
+        normalize_username(name) for name in (refresh_usernames or set())
+    } | vetted_usernames
     manual = load_manual_excludes(MANUAL_EXCLUDES_PATH)
     existing = load_all_eligible_rows(ELIGIBLE_PATH)
     by_name: dict[str, dict[str, Any]] = {}
@@ -1309,11 +1561,27 @@ def run_eligibility(
     current_id = iso_week_id()
     used_shortcodes, used_usernames = previous_week_usage(current_id)
     released = release_prior_week_rows(by_name, used_shortcodes)
+    refreshed_prior = 0
+    for name, row in by_name.items():
+        if name not in refresh_usernames:
+            continue
+        if counts_for_current_week(
+            row, used_shortcodes, used_usernames, refresh_usernames
+        ):
+            continue
+        if not is_selected_row(row):
+            continue
+        for field in SELECTION_CLEAR_FIELDS:
+            row[field] = ""
+        row["selection_note"] = "refresh_prior_account"
+        refreshed_prior += 1
 
     passed = sum(
         1
         for row in by_name.values()
-        if counts_for_current_week(row, used_shortcodes, used_usernames)
+        if counts_for_current_week(
+            row, used_shortcodes, used_usernames, refresh_usernames
+        )
     )
     persist_eligibility(by_name, original_order)
     if released:
@@ -1321,53 +1589,38 @@ def run_eligibility(
             f"Released {released} prior-week reel(s) from the live CSV "
             f"(kept under {WEEKS_DIR})"
         )
-    print(f"Resuming with {passed} already selected this week (target {target})")
+    if refreshed_prior:
+        print(
+            f"Reusing {refreshed_prior} prior-week account(s) for a new reel this week"
+        )
+    workers = max(1, int(workers))
+    print(
+        f"Resuming with {passed} already selected this week "
+        f"(target {target}, workers {workers})"
+    )
 
     total = len(usernames)
-    for index, username in enumerate(usernames, start=1):
+    todo = iter(enumerate(usernames, start=1))
+    pending: dict[Any, tuple[int, str, bool]] = {}
+    in_flight: set[str] = set()
+    reached = False
+
+    def apply_result(index: int, username: str, is_vetted: bool, row: dict[str, Any], js_row: dict[str, str] | None) -> None:
+        nonlocal passed
         key = normalize_username(username)
-        is_vetted = key in vetted_usernames
-        if key in manual:
-            print(f"Eligibility {index}/{total}: {username}  (manual skip {manual[key]})")
-            continue
-        already = key in by_name
-        if already and not (refresh_seeds and is_vetted):
-            continue
-        if key in used_usernames:
-            continue
-        if passed >= target and not (refresh_seeds and is_vetted):
-            print(f"\nReached {target} accounts with a selected reel; stopping.")
-            break
-
-        print(f"Eligibility {index}/{total}: {username}  (selected {passed}/{target})")
-        old_selected = counts_for_current_week(
-            by_name.get(key), used_shortcodes, used_usernames
-        )
-        try:
-            row, js_row = evaluate_candidate(
-                api,
-                username,
-                delay,
-                vetted=is_vetted,
-                used_shortcodes=used_shortcodes,
-            )
-        except NotFoundException:
-            row, js_row = blank_result(username, exclusion_reason="not found"), None
-        except BadResponseException as exc:
-            row, js_row = blank_result(username, exclusion_reason=f"bad response: {exc}"), None
-        except Exception as exc:  # noqa: BLE001
-            row, js_row = blank_result(username, exclusion_reason=f"error: {exc}"), None
-
         if key in manual:
             row["exclusion_reason"] = manual[key]
         if js_row and normalize_username(js_row.get("username")) not in js_seen:
             js_rows.append(js_row)
             js_seen.add(normalize_username(js_row.get("username")))
+        old_selected = counts_for_current_week(
+            by_name.get(key), used_shortcodes, used_usernames, refresh_usernames
+        )
         by_name[key] = row
         if key not in original_order:
             original_order.append(key)
         new_selected = counts_for_current_week(
-            row, used_shortcodes, used_usernames
+            row, used_shortcodes, used_usernames, refresh_usernames
         )
         if old_selected and not new_selected:
             passed -= 1
@@ -1376,13 +1629,72 @@ def run_eligibility(
         persist_eligibility(by_name, original_order)
         if new_selected:
             print(
-                f"  selected {row['selected_shortcode']} via {row['selection_note']} "
-                f"({row['reels_checked_before_pass']} checked, {row['niche_confirmed']})"
+                f"  {username}: selected {row['selected_shortcode']} via {row['selection_note']} "
+                f"({row['reels_checked_before_pass']} checked, {row['niche_confirmed']}) "
+                f"[{passed}/{target}]"
             )
         else:
-            print(f"  skipped ({row.get('exclusion_reason') or row.get('selection_note') or 'no reel'})")
-        if index < total and (passed < target or (refresh_seeds and is_vetted)):
-            time.sleep(delay)
+            print(
+                f"  {username}: skipped "
+                f"({row.get('exclusion_reason') or row.get('selection_note') or 'no reel'})"
+            )
+
+    def submit_next(executor: ThreadPoolExecutor) -> bool:
+        nonlocal reached
+        while True:
+            try:
+                index, username = next(todo)
+            except StopIteration:
+                return False
+            key = normalize_username(username)
+            is_vetted = key in vetted_usernames
+            is_refresh = key in refresh_usernames
+            if key in manual:
+                print(f"Eligibility {index}/{total}: {username}  (manual skip {manual[key]})")
+                continue
+            if key in in_flight:
+                continue
+            already = key in by_name
+            already_this_week = counts_for_current_week(
+                by_name.get(key), used_shortcodes, used_usernames, refresh_usernames
+            )
+            if already_this_week:
+                continue
+            if already and not is_refresh:
+                continue
+            if key in used_usernames and not is_refresh:
+                continue
+            if passed >= target and not (refresh_seeds and is_vetted):
+                reached = True
+                return False
+            print(f"Eligibility {index}/{total}: {username}  (selected {passed}/{target})")
+            in_flight.add(key)
+            pending[executor.submit(
+                evaluate_candidate_safe,
+                username,
+                delay,
+                is_vetted,
+                used_shortcodes,
+            )] = (index, username, is_vetted)
+            return True
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for _ in range(workers):
+            if not submit_next(executor):
+                break
+        while pending:
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for future in done:
+                index, username, is_vetted = pending.pop(future)
+                in_flight.discard(normalize_username(username))
+                row, js_row = future.result()
+                apply_result(index, username, is_vetted, row, js_row)
+            while len(pending) < workers:
+                if not submit_next(executor):
+                    break
+
+    if reached or passed >= target:
+        print(f"\nReached {target} accounts with a selected reel; stopping.")
 
     write_csv(NEEDS_JS_PATH, ["username", "external_url", "reason"], js_rows)
     ordered = persist_eligibility(by_name, original_order)
@@ -1640,10 +1952,12 @@ def current_week_rows(
 ) -> list[dict[str, Any]]:
     """Selected reels for this ISO week only — never reuse last week's accounts."""
     used_shortcodes, used_usernames = previous_week_usage(iso_week_id(when))
+    allow = {normalize_username(name) for name in load_seeds(SEEDS_PATH)}
+    allow |= used_usernames
     return [
         row
         for row in rows
-        if counts_for_current_week(row, used_shortcodes, used_usernames)
+        if counts_for_current_week(row, used_shortcodes, used_usernames, allow)
     ]
 
 
@@ -1714,7 +2028,13 @@ def main() -> None:
     print(f"Loaded {len(seeds)} seed(s) from {SEEDS_PATH}")
 
     if not args.eligibility_only:
-        run_discovery(api, seeds, args.delay, following_limit=args.following_limit)
+        run_discovery(
+            api,
+            seeds,
+            args.delay,
+            following_limit=args.following_limit,
+            extra_sources=selected_usernames_for_discovery(),
+        )
     if args.discovery_only:
         return
 
@@ -1727,11 +2047,21 @@ def main() -> None:
         sys.exit(f"Missing {CANDIDATES_PATH}. Run discovery first.")
 
     seed_set = {name.lower() for name in seeds}
+    prior_accounts = prior_week_usernames_ordered()
+    prior_set = set(prior_accounts)
     queue = list(seeds)
-    for name in discovered:
-        if name.lower() not in seed_set:
+    for name in prior_accounts:
+        if name not in seed_set:
             queue.append(name)
-    print(f"\nEligibility on {len(queue)} account(s) ({len(seeds)} seeds first, target {args.target})")
+    for name in discovered:
+        key = name.lower()
+        if key not in seed_set and key not in prior_set:
+            queue.append(name)
+    print(
+        f"\nEligibility on {len(queue)} account(s) "
+        f"({len(seeds)} seeds, {len(prior_accounts)} prior-week accounts first, "
+        f"target {args.target})"
+    )
     gui_rows = run_eligibility(
         api,
         queue,
@@ -1739,6 +2069,8 @@ def main() -> None:
         args.target,
         seed_set,
         refresh_seeds=not args.no_refresh_seeds,
+        workers=args.workers,
+        refresh_usernames=seed_set | prior_set,
     )
     week_rows = current_week_rows(gui_rows)
     archive_week(week_rows)
