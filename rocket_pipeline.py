@@ -44,6 +44,7 @@ CANDIDATES_PATH = ROOT / "candidates_discovered.csv"
 ELIGIBLE_PATH = ROOT / "eligible_accounts.csv"
 NEEDS_JS_PATH = ROOT / "needs_js_render.csv"
 MANUAL_EXCLUDES_PATH = ROOT / "excluded_manual.txt"
+REJECTED_PATH = ROOT / "excluded_rejected.txt"
 HTML_PATH = ROOT / "public" / "visual_library.html"
 WEEKS_DIR = ROOT / "data" / "weeks"
 
@@ -83,7 +84,9 @@ ACCESSIBILITY_GROUP_RE = re.compile(
 GROUP_CAPTION_RE = re.compile(
     r"\b(?:me and my|me & my|besties?|friend group|the girls|"
     r"with my (?:bestie|boyfriend|girlfriend|husband|wife|man|girl)|"
-    r"we (?:went|are|were|got)|our (?:date|trip|night))\b",
+    r"we (?:went|are|were|got)|our (?:date|trip|night)|"
+    r"happy birthday|pick your fighter|who did it better|"
+    r"she(?:'s| is) right behind me|her friend|two guys)\b",
     re.IGNORECASE,
 )
 MENTION_RE = re.compile(r"@([A-Za-z0-9._]+)")
@@ -91,25 +94,41 @@ COMMERCIAL_CAPTION_RE = re.compile(
     r"(?:shop now|buy now|order now|use code|promo code|#ad\b|#gifted|"
     r"\bsponsored\b|limited edition|add to cart|on sale|"
     r"new collection|just dropped|pre-?order|worldwide shipping|"
-    r"available (?:now|on|at)\b)",
+    r"available (?:now|on|at)\b|comment shop|tiktok ?shop|"
+    r"linked in my|formula:)",
+    re.IGNORECASE,
+)
+NEWS_CAPTION_RE = re.compile(
+    r"(?:governor|election results|democrats|republicans|breaking news|"
+    r"home-opener|premiere in|convicted in|news leader)",
     re.IGNORECASE,
 )
 NON_CREATOR_BIO_RE = re.compile(
     r"(?:501\s*\(\s*c\s*\)\s*\(\s*3\s*\)|non-?profit wildlife|"
     r"fair and fearless reporting|send news tips|breaking news|"
-    r"podcast hosted by|new episodes every|"
+    r"podcast hosted by|new episodes every|official #?\w*tv podcast|"
     r"private management for|vip host\s*/\s*concierge|"
     r"board certified(?: plastic)? surgeon|cirujano pl[aá]stico|"
     r"worldwide shipping|text [“\"']?\w+[”\"']? to \+?\d|"
     r"account no longer active|pulse of pop culture|"
-    r"building a successful .{0,40}business)",
+    r"building a successful .{0,40}business|"
+    r"interior design studio|virtual design|"
+    r"news leader|celeb(?:rity)? & entertainment news|"
+    r"parenting journey|action sports|"
+    r"i make hair vlogs|online education link)",
     re.IGNORECASE,
 )
 MEDIA_BIO_RE = re.compile(
     r"\b(?:newsroom|journalist|reporting|news tips|celebrity news|"
-    r"pop culture and politics)\b",
+    r"pop culture and politics|entertainment news|eyewitness)\b",
     re.IGNORECASE,
 )
+MEDIA_USERNAME_RE = re.compile(
+    r"(?:^abc\d|pagesix|huffpost|enews|nitrocircus|rabbithole|"
+    r"news|podcast|^parents$)",
+    re.IGNORECASE,
+)
+MAX_GROUPISH_SKIPS = 4
 
 # Soft US-signal heuristic for display order only. Low confidence, never an
 # eligibility/exclusion rule. Bio/location match first; English caption second.
@@ -960,32 +979,42 @@ def select_reel(
         log_collab_fields_once(ranked[0])
     checked = 0
     skip_history: list[str] = []
+    groupish = 0
     for item in ranked:
         checked += 1
+        if groupish >= MAX_GROUPISH_SKIPS:
+            break
         code = media_code(item)
         if code and code in used_shortcodes:
             skip_history.append("skipped_prior_week")
             continue
         if is_collab_reel(item):
             skip_history.append("skipped_collab")
+            groupish += 1
             continue
         caption = caption_text(item)
-        if is_commercial_reel(item, caption):
+        if is_commercial_reel(item, caption) or is_news_reel(caption):
             skip_history.append("skipped_commercial")
             continue
         if reel_has_multiple_people(item, caption, "", username):
             skip_history.append("skipped_multiple_people")
+            groupish += 1
             continue
         acc = caption_for_reel(api, item, extra_map, delay)
         if acc:
             reason = accessibility_fails(acc)
             if reason:
                 skip_history.append(reason)
+                if reason in {"multiple_people", "people_without_one"}:
+                    groupish += 1
                 continue
             if reel_has_multiple_people(item, caption, acc, username):
                 skip_history.append("skipped_multiple_people")
+                groupish += 1
                 continue
             return item, checked, join_selection_note(skip_history, "passed_caption_check")
+        if groupish >= MAX_GROUPISH_SKIPS:
+            break
         return item, checked, join_selection_note(skip_history, "unverified_no_caption")
     return None, checked, join_selection_note(skip_history, "reel_selection_failed")
 
@@ -1128,6 +1157,14 @@ def load_manual_excludes(path: Path) -> dict[str, str]:
         name = normalize_username(username)
         if name:
             excludes[name] = (reason.strip() or "excluded_manual")
+    if REJECTED_PATH.exists():
+        for raw in REJECTED_PATH.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            name = normalize_username(line.split(",")[0])
+            if name and name not in excludes:
+                excludes[name] = "excluded_previously_rejected"
     return excludes
 
 
@@ -1138,6 +1175,8 @@ def looks_like_couple(*texts: str) -> bool:
 
 def looks_like_non_creator(username: str, bio: str) -> str | None:
     """News, brands, clinics, and podcasts that reviewers rejected last weeks."""
+    if MEDIA_USERNAME_RE.search(username or ""):
+        return "excluded_media_account"
     if NON_CREATOR_BIO_RE.search(bio or ""):
         return "excluded_non_creator"
     if MEDIA_BIO_RE.search(bio or ""):
@@ -1155,8 +1194,15 @@ def media_nodes(item: dict[str, Any]) -> list[dict[str, Any]]:
     return nodes
 
 
+def is_news_reel(caption: str, bio: str = "") -> bool:
+    blob = f"{caption or ''} {bio or ''}"
+    return bool(NEWS_CAPTION_RE.search(blob) or MEDIA_BIO_RE.search(blob))
+
+
 def is_commercial_reel(item: dict[str, Any], caption: str = "") -> bool:
     if COMMERCIAL_CAPTION_RE.search(caption or ""):
+        return True
+    if NEWS_CAPTION_RE.search(caption or ""):
         return True
     for node in media_nodes(item):
         if node.get("is_paid_partnership") is True:
@@ -2047,7 +2093,12 @@ def main() -> None:
         sys.exit(f"Missing {CANDIDATES_PATH}. Run discovery first.")
 
     seed_set = {name.lower() for name in seeds}
-    prior_accounts = prior_week_usernames_ordered()
+    rejected = load_manual_excludes(MANUAL_EXCLUDES_PATH)
+    prior_accounts = [
+        name
+        for name in prior_week_usernames_ordered()
+        if name not in rejected
+    ]
     prior_set = set(prior_accounts)
     queue = list(seeds)
     for name in prior_accounts:
